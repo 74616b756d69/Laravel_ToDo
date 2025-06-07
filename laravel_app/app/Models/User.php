@@ -68,4 +68,24 @@ class User extends Model
         // 2. そのユーザーに紐付いているTaskのみを取得
         $tasks = User::find(1)->tasks;
     */
+
+    function company() {
+        return $this->belongsTo(company::class);
+    }
+
+    /* コントローラーの使用例③
+        // 1. find(1)でidが1のUserを絞り込み
+        // 2. そのユーザーに紐付いているCompanyのみを取得
+        $company = User::find(1)->company;
+     */
+
+    function groups() {
+        return $this->belongsToMany(groups::class);
+    }
+
+    /* コントローラーの使用例 多対多
+        // 1. find(1)でidが1のUserを絞り込み
+        // 2. そのユーザーに紐付いているCompanyのみを取得
+        $company = User::find(1)->company;
+    */
 }
