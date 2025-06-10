@@ -19,7 +19,7 @@ class SignUpController extends Controller
         // それぞれの入力値を取得
         $name = $request["name"];
         $email = $request["email"];
-        $password = $request("password");
+        $password = $request["password"];
         $passwordConfirmation = $request["passwordConfirmation"];
 
         // パスワードが一致するかどうか

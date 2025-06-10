@@ -15,7 +15,7 @@ class LoginController extends Controller
         return view("login.index", compact("error"));
     }
 
-    function store(Request $requrst) {
+    function store(Request $request) {
         //　それぞれの入力値を取得
         $email = $request["email"];
         $password = $request["password"];

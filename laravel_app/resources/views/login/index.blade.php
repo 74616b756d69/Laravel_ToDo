@@ -25,6 +25,6 @@
     {{-- エラーがある場合に表示する --}}
     @if ($error)
         <p>{{ $error }}</p>
-    @endir
+    @endif
 </body>
 </html>

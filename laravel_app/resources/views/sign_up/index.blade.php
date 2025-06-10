@@ -12,7 +12,7 @@
     <form action={{ route('sign_up.store') }} method="POST">
         <!-- {{-- 【重要】sign_up.storeのルーティングは後で作成する --}}
         {{-- (@csrtと書くだけでOK) --}} -->
-        @curf
+        @csrf
         <label>名前</label>
         <input type="text" name="name">
 
