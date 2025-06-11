@@ -1,0 +1,34 @@
+@charset "UTF-8";
+/* ----Resetcss----  */
+body{
+    margin: 0;
+    padding: 0;
+    background-color: #f7f3ee;
+}
+
+/* ---- header ---- */
+
+header{
+    background-color: rgb(191, 10, 68);
+}
+
+h1{
+    margin: 0;
+    font-weight: bold;
+    margin-left: 40px;
+    padding: 20px 0;
+    font-size: 30px;
+    color: #fff;
+}
+
+h2{
+    margin-left: 40px;
+    text-align: center;
+}
+
+
+/* ---- サインインページ ---- */
+
+form{
+    text-align: center;
+}
