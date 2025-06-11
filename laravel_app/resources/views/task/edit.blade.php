@@ -9,26 +9,28 @@
 </head>
 <body>
     <header> 
-        <h1>ToDOリスト</h1>
+        <h1><a href="{{ route("task") }}">ToDoリスト</a></h1>
     </header>
-    <h2>タスク編集ページ</h2>
+    <h2 class="loginpage_subtitle">タスク編集</h2>
 
     {{-- 【重要】task.updateのルーティングは後で作成する --}}
-    <form action={{ route('task.update', ['id' => $task["id"]]) }} method="POST">
-        @csrf
-        {{-- 【重要】HTTPメソッドをPUTに変更 --}}
-        @method('PUT')
+    <div class="form_margin_div">
+        <form action={{ route('task.update', ['id' => $task["id"]]) }} method="POST">
+            @csrf
+            {{-- 【重要】HTTPメソッドをPUTに変更 --}}
+            @method('PUT')
 
-        <label>タイトル</label>
-        {{-- value属性に$task["title"]を設定することで、編集前のタイトルが入力値に戻る --}}
-        <input type="text" name="title" value="{{ $task["title"] }}">
+            <label>タイトル</label>
+            {{-- value属性に$task["title"]を設定することで、編集前のタイトルが入力値に戻る --}}
+            <input type="text" name="title" value="{{ $task["title"] }}">
 
-        <label>内容</label>
-        {{-- textarea内に$task["content"]を設定することで、編集前の内容が入力値に入る --}}
-        <textarea name="content">{{ $task["content"]}}</textarea>
+            <label>内容</label>
+            {{-- textarea内に$task["content"]を設定することで、編集前の内容が入力値に入る --}}
+            <textarea name="content">{{ $task["content"]}}</textarea>
 
-        <button type="submit">更新</button>
-    </form>
+            <button type="submit">更新</button>
+        </form>
+    </div>
 
     {{-- タスク一覧ページに戻るボタン --}}
     <a href="{{ route("task.show", ["id" => $task["id"]]) }}>戻る</a>
