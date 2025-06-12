@@ -30,7 +30,7 @@
             <label>パスワード確認</label>
             <input type="password" id="passwordConfirmation" name="passwordConfirmation" placeholder="パスワードを再入力" >
 
-            <button type="submit">サインアップ</button>
+            <button id="sinup-button" type="submit">サインアップ</button>
         </form>
     </div>
         <p class="login_page_a"><a href="{{ route("login") }}">ログイン画面へ</a></p>
@@ -39,7 +39,7 @@
         <p>{{ $error }}</p>
     @endif
     <script>
-        document.getElementById("signupForm").addEventListener('click', function (e){
+        document.getElementById("sinup-button").addEventListener('click', function (e){
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
