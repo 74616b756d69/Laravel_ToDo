@@ -1,47 +1,57 @@
-# Laravel_ToDo
-LaravelでToDoリストの制作
+# ✅ Laravel ToDo
 
+> Laravelで構築したタスク管理Webアプリケーション
 
-### 使用言語：
-・PHP（主にLaravelを使用）
-<br>
-・JavaScript（新規登録ページのフォーム未入力時のアラート表示に使用）
-<br>
-・HTML / CSS（ページのデザインに使用）
+![PHP](https://img.shields.io/badge/PHP-777BB4?style=flat-square&logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-FF2D20?style=flat-square&logo=laravel&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
 
-<!-- ### ToDoリスト概要
-・自分のタスク管理ができるサイト
-<br>
-・自分のアカウントを登録し、ログインすることで使用できる。
-<br>
-・タスクの追加、編集や消去ができる -->
+---
 
-### 実装を加えた点
- ・CSSを使用してページデザインを制作
- <br>
- ・JavaScriptを使用してアラート表示を追加した
- <br>
- ・利便性を考え遷移ページボタンやaタグを追加した
+## 📌 概要
 
-# view
+ユーザーが自分のタスクを登録・管理できるWebアプリです。  
+アカウント登録・ログインにより、各ユーザーのタスクをセキュアに管理します。  
+タスクの追加・編集・削除に加え、バリデーションや画面遷移の利便性向上も実装しています。
 
-#### 新規登録ページ
-![新規登録ページ](imags/sinup-page.png)
+---
 
-#### 新規登録ページ-アラート表示時
-![新規登録ページ-アラート時](imags/sinup-page_alert.png)
+## 🛠️ 技術スタック
 
-#### ログインページ
-![ログインページ](imags/login-page.png)
+| カテゴリ | 使用技術 |
+|---|---|
+| バックエンド | PHP / Laravel |
+| フロントエンド | HTML / CSS / JavaScript |
+| データベース | MySQL |
 
-#### タスク一覧ページ
-![タスク一覧ページ](imags/tasklist-page.png)
+---
 
-#### タスク詳細ページ
-![タスク詳細ページ](imags/taskContent-page.png)
+## ✨ 主な機能
 
-#### タスク作成ページ
-![タスク作成ページ](imags/taskmake-page.png)
+- **ユーザー認証** ― 新規登録・ログイン・ログアウト
+- **タスク管理（CRUD）** ― 一覧・詳細・作成・編集・削除
+- **フォームバリデーション** ― 未入力時のJavaScriptアラート表示
+- **UI設計** ― CSSによるレイアウト構築・画面遷移の最適化
 
-#### タスク編集ページ
-![タスク編集ページ](imags/taskedit-page.png)
+---
+
+## 🔧 設計のポイント
+
+- **MVC アーキテクチャ** ― LaravelのRouting / Controller / Model / View を活用した実装
+- **認証** ― Laravel標準の認証機能でユーザーごとのデータを分離管理
+- **フロント連携** ― JavaScriptでバリデーションを追加しUXを向上
+
+---
+
+## 📸 スクリーンショット
+
+| 画面 | |
+|---|---|
+| 新規登録 | ![新規登録ページ](imags/sinup-page.png) |
+| 新規登録（アラート表示） | ![アラート](imags/sinup-page_alert.png) |
+| ログイン | ![ログインページ](imags/login-page.png) |
+| タスク一覧 | ![タスク一覧](imags/tasklist-page.png) |
+| タスク詳細 | ![タスク詳細](imags/taskContent-page.png) |
+| タスク作成 | ![タスク作成](imags/taskmake-page.png) |
+| タスク編集 | ![タスク編集](imags/taskedit-page.png) |
