@@ -1,0 +1,21 @@
+# ホスト側の成果物や秘密情報をイメージに持ち込まない
+.git
+.github
+mysql_data
+imags
+docker-compose.yml
+README.md
+
+laravel_app/.env
+laravel_app/.env.backup
+laravel_app/vendor
+laravel_app/node_modules
+laravel_app/public/build
+laravel_app/public/hot
+laravel_app/storage/logs/*
+laravel_app/storage/framework/cache/data/*
+laravel_app/storage/framework/sessions/*
+laravel_app/storage/framework/views/*
+laravel_app/storage/app/purifier
+laravel_app/database/database.sqlite
+laravel_app/.phpunit.cache

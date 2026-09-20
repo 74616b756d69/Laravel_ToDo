@@ -179,7 +179,38 @@ docker compose up --build
 # → http://localhost:8000
 ```
 
-初回起動時に `.env` の生成・アプリケーションキーの発行・マイグレーションが自動で実行されます。
+これだけで MySQL ごと起動し、そのまま新規登録してタスクを作れます。
+初回起動時に以下が自動で実行されます。
+
+1. `.env` の生成と、compose で指定した設定（DB 接続先など）の反映
+2. アプリケーションキーの発行
+3. MySQL の起動待ち → マイグレーション
+4. デモデータの投入（タスク 100 件。`SEED_DATABASE: "false"` で無効化）
+
+停止と初期化:
+
+```bash
+docker compose down      # 停止（データは残る）
+docker compose down -v   # DB のデータごと削除
+```
+
+<details>
+<summary>詰まりどころ: <code>artisan serve</code> は環境変数を子プロセスに渡さない</summary>
+
+`php artisan serve` は、起動する PHP ビルトインサーバーへ**一部の環境変数しか引き継ぎません**。
+そのため compose の `environment:` に `DB_CONNECTION: mysql` を書いても、
+CLI（`php artisan migrate`）からは見えるのに、**Web リクエストからは見えない**という状態になります。
+結果、Web 側だけが `.env` の既定値（SQLite）にフォールバックし、
+
+```
+Database file at path [.../database.sqlite] does not exist.
+```
+
+というエラーになります。
+
+本リポジトリでは、エントリポイントでコンテナの環境変数を `.env` に書き戻し、
+CLI と Web の設定を一致させることで解決しています（`docker/entrypoint.sh`）。
+</details>
 
 ### ローカルで起動する（SQLite）
 
