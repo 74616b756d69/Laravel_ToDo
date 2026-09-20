@@ -3,15 +3,15 @@
 namespace Tests\Feature\Task;
 
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
-use App\Models\Task;
+use App\Models\Issue;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\UsesWorkflow;
 use Tests\TestCase;
 
 class TaskCrudTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, UsesWorkflow;
 
     private User $user;
 
@@ -24,8 +24,8 @@ class TaskCrudTest extends TestCase
 
     public function test_一覧には自分のタスクだけが表示される(): void
     {
-        Task::factory()->for($this->user)->create(['title' => '自分のタスク']);
-        Task::factory()->for(User::factory())->create(['title' => '他人のタスク']);
+        Issue::factory()->forUser($this->user)->create(['title' => '自分のタスク']);
+        Issue::factory()->create(['title' => '他人のタスク']);
 
         $this->actingAs($this->user)
             ->get(route('tasks.index'))
@@ -39,16 +39,19 @@ class TaskCrudTest extends TestCase
         $response = $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => '新しいタスク',
             'content' => 'メモ',
-            'status' => TaskStatus::Doing->value,
+            'status' => $this->statusIdFor($this->user, 'In Progress'),
             'priority' => TaskPriority::High->value,
             'due_date' => '2026-12-31',
         ]);
 
-        $task = Task::sole();
+        $task = Issue::sole();
 
         $response->assertRedirect(route('tasks.show', $task));
-        $this->assertSame($this->user->id, $task->user_id);
-        $this->assertSame(TaskStatus::Doing, $task->status);
+        $this->assertSame($this->user->id, $task->reporter_id);
+        $this->assertSame($this->user->id, $task->assignee_id);
+        // 個人プロジェクトに自動で所属する
+        $this->assertSame(\App\Models\Project::personalFor($this->user)->id, $task->project_id);
+        $this->assertSame($this->statusIdFor($this->user, 'In Progress'), $task->status_id);
         $this->assertSame(TaskPriority::High, $task->priority);
         $this->assertNull($task->completed_at);
     }
@@ -57,11 +60,11 @@ class TaskCrudTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => '完了済みタスク',
-            'status' => TaskStatus::Done->value,
+            'status' => $this->statusIdFor($this->user, 'Done'),
             'priority' => TaskPriority::Low->value,
         ]);
 
-        $this->assertNotNull(Task::sole()->completed_at);
+        $this->assertNotNull(Issue::sole()->completed_at);
     }
 
     public function test_タイトルが空だと作成できない(): void
@@ -69,7 +72,7 @@ class TaskCrudTest extends TestCase
         $this->actingAs($this->user)
             ->post(route('tasks.store'), [
                 'title' => '',
-                'status' => TaskStatus::Todo->value,
+                'status' => $this->statusIdFor($this->user, 'To Do'),
                 'priority' => TaskPriority::Low->value,
             ])
             ->assertSessionHasErrors('title');
@@ -90,12 +93,12 @@ class TaskCrudTest extends TestCase
 
     public function test_タスクを更新できる(): void
     {
-        $task = Task::factory()->for($this->user)->create(['title' => '変更前']);
+        $task = Issue::factory()->forUser($this->user)->create(['title' => '変更前']);
 
         $this->actingAs($this->user)->put(route('tasks.update', $task), [
             'title' => '変更後',
             'content' => null,
-            'status' => TaskStatus::Todo->value,
+            'status' => $this->statusIdFor($this->user, 'To Do'),
             'priority' => TaskPriority::Medium->value,
             'due_date' => null,
         ])->assertRedirect(route('tasks.show', $task));
@@ -106,7 +109,7 @@ class TaskCrudTest extends TestCase
 
     public function test_タスクを削除するとソフトデリートされる(): void
     {
-        $task = Task::factory()->for($this->user)->create();
+        $task = Issue::factory()->forUser($this->user)->create();
 
         $this->actingAs($this->user)
             ->delete(route('tasks.destroy', $task))
@@ -117,19 +120,19 @@ class TaskCrudTest extends TestCase
 
     public function test_完了トグルで状態と完了日時が切り替わる(): void
     {
-        $task = Task::factory()->for($this->user)->create([
-            'status' => TaskStatus::Todo,
+        $task = Issue::factory()->forUser($this->user)->create([
+            'status_id' => $this->statusIdFor($this->user, 'To Do'),
             'completed_at' => null,
         ]);
 
         $this->actingAs($this->user)->patch(route('tasks.completion', $task));
         $task->refresh();
-        $this->assertSame(TaskStatus::Done, $task->status);
+        $this->assertTrue($task->isCompleted());
         $this->assertNotNull($task->completed_at);
 
         $this->actingAs($this->user)->patch(route('tasks.completion', $task));
         $task->refresh();
-        $this->assertSame(TaskStatus::Todo, $task->status);
+        $this->assertFalse($task->isCompleted());
         $this->assertNull($task->completed_at);
     }
 }

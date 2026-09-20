@@ -25,9 +25,11 @@
     <div class="grid gap-5 sm:grid-cols-3">
         <div>
             <label for="status" class="field-label">ステータス</label>
+            {{-- 現在地と、ワークフローで許可された行き先だけを出す --}}
             <select id="status" name="status" class="field">
-                @foreach (\App\Enums\TaskStatus::options() as $value => $label)
-                    <option value="{{ $value }}" @selected(old('status', $task->status?->value) === $value)>{{ $label }}</option>
+                @foreach ($statuses as $status)
+                    <option value="{{ $status->id }}"
+                            @selected((int) old('status', $task->status?->id) === $status->id)>{{ $status->name }}</option>
                 @endforeach
             </select>
             <x-input-error :messages="$errors->get('status')" />

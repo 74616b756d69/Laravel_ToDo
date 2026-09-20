@@ -2,7 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Task;
+use App\Models\Issue;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -13,14 +14,16 @@ class DatabaseSeeder extends Seeder
         // ログインしてすぐ全機能を確認できるデモアカウント
         $this->call(DemoUserSeeder::class);
 
-        // データがユーザーごとに分離されていることを確認するための2人目
+        // データがプロジェクトごとに分離されていることを確認するための2人目
         $other = User::updateOrCreate(
             ['email' => 'other@example.com'],
             ['name' => '別のユーザー', 'password' => 'password123'],
         );
 
-        if ($other->tasks()->doesntExist()) {
-            Task::factory()->count(12)->for($other)->create();
+        $project = Project::personalFor($other);
+
+        if ($project->issues()->doesntExist()) {
+            Issue::factory()->count(12)->inProject($project, $other)->create();
         }
     }
 }

@@ -45,11 +45,15 @@
     {{-- 集計カード。クリックでそのままフィルタとしても働く --}}
     <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <x-stat-card label="すべて" :value="$summary['total']"
-                     :href="route('tasks.index')" :active="! $filters['status'] && ! $filters['overdue']" />
+                     :href="route('tasks.index')"
+                     :active="! $filters['status'] && ! $filters['category'] && ! $filters['overdue']" />
+        {{-- ステータス名はプロジェクトごとに違うので、カードはカテゴリで絞る --}}
         <x-stat-card label="未着手" :value="$summary['todo']" accent="text-slate-600 dark:text-slate-300"
-                     :href="route('tasks.index', ['status' => 'todo'])" :active="$filters['status']?->value === 'todo'" />
-        <x-stat-card label="進行中" :value="$summary['doing']" accent="text-sky-600 dark:text-sky-300"
-                     :href="route('tasks.index', ['status' => 'doing'])" :active="$filters['status']?->value === 'doing'" />
+                     :href="route('tasks.index', ['category' => 'todo'])"
+                     :active="$filters['category']?->value === 'todo'" />
+        <x-stat-card label="進行中" :value="$summary['in_progress']" accent="text-sky-600 dark:text-sky-300"
+                     :href="route('tasks.index', ['category' => 'in_progress'])"
+                     :active="$filters['category']?->value === 'in_progress'" />
         <x-stat-card label="期限切れ" :value="$summary['overdue']" accent="text-rose-600 dark:text-rose-400"
                      :href="route('tasks.index', ['overdue' => 1])" :active="$filters['overdue']" />
     </div>
@@ -68,8 +72,8 @@
                 <span class="sr-only">ステータス</span>
                 <select name="status" class="field">
                     <option value="">ステータス：すべて</option>
-                    @foreach (\App\Enums\TaskStatus::options() as $value => $label)
-                        <option value="{{ $value }}" @selected($filters['status']?->value === $value)>{{ $label }}</option>
+                    @foreach ($statuses as $status)
+                        <option value="{{ $status->id }}" @selected($filters['status'] === $status->id)>{{ $status->name }}</option>
                     @endforeach
                 </select>
             </label>

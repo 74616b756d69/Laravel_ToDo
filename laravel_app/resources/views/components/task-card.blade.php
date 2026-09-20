@@ -16,25 +16,31 @@
     </form>
 
     <div class="min-w-0 flex-1">
-        <a href="{{ route('tasks.show', $task) }}"
-           class="block truncate font-medium transition group-hover:text-brand-700 dark:group-hover:text-brand-300
-                  {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
-            {{ $task->title }}
-        </a>
+        <div class="flex items-baseline gap-2">
+            {{-- 課題キーは project.key + issue_number から組み立てる（保存はしない） --}}
+            <span class="shrink-0 font-mono text-xs tracking-wider text-slate-400 dark:text-slate-500">
+                {{ $task->key() }}
+            </span>
+            <a href="{{ route('tasks.show', $task) }}"
+               class="block truncate font-medium transition group-hover:text-brand-700 dark:group-hover:text-brand-300
+                      {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
+                {{ $task->title }}
+            </a>
+        </div>
 
         @if ($task->content)
             {{-- 本文は HTML なので、一覧では平文の抜粋だけを出す --}}
             <p class="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{{ $task->excerpt() }}</p>
         @endif
 
-        @if (($task->subtasks_count ?? 0) > 0)
+        @if (($task->children_count ?? 0) > 0)
             <div class="mt-2 max-w-48">
-                <x-progress-bar :done="$task->done_subtasks_count" :total="$task->subtasks_count" compact />
+                <x-progress-bar :done="$task->done_children_count" :total="$task->children_count" compact />
             </div>
         @endif
 
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
-            <x-badge :classes="$task->status->badgeClasses()">{{ $task->status->label() }}</x-badge>
+            <x-badge :classes="$task->status->badgeClasses()">{{ $task->status->name }}</x-badge>
             <x-badge :classes="$task->priority->badgeClasses()" :dot="$task->priority->dotClasses()">
                 優先度{{ $task->priority->label() }}
             </x-badge>

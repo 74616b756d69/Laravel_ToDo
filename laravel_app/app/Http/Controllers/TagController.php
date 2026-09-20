@@ -13,7 +13,7 @@ class TagController extends Controller
     public function index(): View
     {
         // タグごとの利用件数を 1 クエリで添える
-        $tags = Auth::user()->tags()->withCount('tasks')->get();
+        $tags = Auth::user()->tags()->withCount('issues')->get();
 
         return view('tags.index', compact('tags'));
     }

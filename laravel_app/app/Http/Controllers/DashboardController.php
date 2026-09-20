@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
-use App\Models\Task;
+use App\Models\Issue;
+use App\Models\Project;
+use App\Services\SprintService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -16,6 +18,8 @@ class DashboardController extends Controller
     /** 完了数の推移を見る日数 */
     private const TREND_DAYS = 14;
 
+    public function __construct(private readonly SprintService $sprints) {}
+
     public function index(): View
     {
         return view('dashboard.index', [
@@ -25,13 +29,20 @@ class DashboardController extends Controller
             'streak' => $this->streak(),
             'upcoming' => $this->upcoming(),
             'topTags' => $this->topTags(),
+            // 進行中スプリントがあればバーンダウンを出す。無ければ null
+            'burndown' => $this->sprints->burndownFor(Project::personalFor(Auth::user())),
         ]);
     }
 
-    /** @return Builder<Task> */
+    /**
+     * 集計の対象。自分が参加しているプロジェクトの課題すべて。
+     * サブタスクは親に内包されるものなので、指標には数えない。
+     *
+     * @return Builder<Issue>
+     */
     private function query(): Builder
     {
-        return Auth::user()->tasks()->getQuery();
+        return Issue::query()->visibleTo(Auth::user())->topLevel();
     }
 
     /**
@@ -41,12 +52,14 @@ class DashboardController extends Controller
      */
     private function totals(): array
     {
+        // ステータス名はプロジェクトごとに違うので、集計はカテゴリ単位で行う
         $counts = $this->query()
-            ->selectRaw('status, count(*) as aggregate')
-            ->groupBy('status')
-            ->pluck('aggregate', 'status');
+            ->join('statuses', 'statuses.id', '=', 'tasks.status_id')
+            ->selectRaw('statuses.category as category, count(*) as aggregate')
+            ->groupBy('statuses.category')
+            ->pluck('aggregate', 'category');
 
-        $done = (int) $counts->get(TaskStatus::Done->value, 0);
+        $done = (int) $counts->get(StatusCategory::Done->value, 0);
         $total = (int) $counts->sum();
 
         return [
@@ -75,7 +88,7 @@ class DashboardController extends Controller
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $from)
             ->get(['completed_at'])
-            ->countBy(fn (Task $task) => $task->completed_at->toDateString());
+            ->countBy(fn (Issue $issue) => $issue->completed_at->toDateString());
 
         return collect(range(0, self::TREND_DAYS - 1))
             ->map(function (int $offset) use ($from, $counts) {
@@ -96,7 +109,7 @@ class DashboardController extends Controller
     private function openTasksByPriority(): Collection
     {
         $counts = $this->query()
-            ->whereNot('status', TaskStatus::Done)
+            ->completed(false)
             ->selectRaw('priority, count(*) as aggregate')
             ->groupBy('priority')
             ->pluck('aggregate', 'priority');
@@ -117,7 +130,7 @@ class DashboardController extends Controller
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', today()->subDays(365))
             ->get(['completed_at'])
-            ->map(fn (Task $task) => $task->completed_at->toDateString())
+            ->map(fn (Issue $issue) => $issue->completed_at->toDateString())
             ->unique()
             ->flip();
 
@@ -136,13 +149,13 @@ class DashboardController extends Controller
     /**
      * 期限が近い未完了タスク。
      *
-     * @return Collection<int, Task>
+     * @return Collection<int, Issue>
      */
     private function upcoming(): Collection
     {
         return $this->query()
-            ->with('tags')
-            ->whereNot('status', TaskStatus::Done)
+            ->with('tags', 'project', 'status')
+            ->completed(false)
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<=', today()->addWeek())
             ->sorted('due_date')
@@ -158,12 +171,12 @@ class DashboardController extends Controller
     private function topTags(): Collection
     {
         return Auth::user()->tags()
-            ->withCount('tasks')
+            ->withCount('issues')
             ->reorder()
-            ->orderByDesc('tasks_count')
+            ->orderByDesc('issues_count')
             ->limit(5)
             ->get()
-            ->filter(fn ($tag) => $tag->tasks_count > 0)
+            ->filter(fn ($tag) => $tag->issues_count > 0)
             ->values();
     }
 }

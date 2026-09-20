@@ -26,9 +26,13 @@ class Tag extends Model
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsToMany<Task, $this> */
-    public function tasks(): BelongsToMany
+    /**
+     * 中間テーブルは tasks 時代の tag_task をそのまま使う。
+     *
+     * @return BelongsToMany<Issue, $this>
+     */
+    public function issues(): BelongsToMany
     {
-        return $this->belongsToMany(Task::class);
+        return $this->belongsToMany(Issue::class, 'tag_task', 'tag_id', 'task_id');
     }
 }

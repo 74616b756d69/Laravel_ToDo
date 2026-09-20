@@ -2,10 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Enums\TaskStatus;
-use App\Models\Task;
+use App\Enums\StatusCategory;
+use App\Models\Issue;
 use App\Models\User;
 use Database\Seeders\DemoUserSeeder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,6 +28,16 @@ class DemoSeederTest extends TestCase
         $this->demo = User::where('email', config('demo.email'))->firstOrFail();
     }
 
+    /**
+     * デモユーザーに見える課題。サブタスクは親に内包されるので数えない。
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Issue>
+     */
+    private function demoIssues(): Builder
+    {
+        return Issue::query()->visibleTo($this->demo)->topLevel();
+    }
+
     public function test_設定どおりの認証情報でログインできる(): void
     {
         $this->post(route('login'), [
@@ -39,15 +50,18 @@ class DemoSeederTest extends TestCase
 
     public function test_タスクが100件作られる(): void
     {
-        $this->assertSame(100, $this->demo->tasks()->count());
+        $this->assertSame(100, $this->demoIssues()->count());
     }
 
-    public function test_全ステータスのタスクが存在する(): void
+    public function test_全カテゴリの課題が存在する(): void
     {
-        foreach (TaskStatus::cases() as $status) {
+        // ステータス名はプロジェクトごとに違うので、カテゴリで確かめる
+        foreach (StatusCategory::cases() as $category) {
             $this->assertTrue(
-                $this->demo->tasks()->where('status', $status)->exists(),
-                "{$status->label()}のタスクが作られていません",
+                $this->demoIssues()
+                    ->whereHas('status', fn ($query) => $query->where('category', $category))
+                    ->exists(),
+                "{$category->label()}の課題が作られていません",
             );
         }
     }
@@ -55,8 +69,8 @@ class DemoSeederTest extends TestCase
     public function test_タグとサブタスクが紐づいている(): void
     {
         $this->assertSame(6, $this->demo->tags()->count());
-        $this->assertTrue($this->demo->tags()->withCount('tasks')->get()->every(fn ($tag) => $tag->tasks_count > 0));
-        $this->assertTrue(Task::has('subtasks')->where('user_id', $this->demo->id)->exists());
+        $this->assertTrue($this->demo->tags()->withCount('issues')->get()->every(fn ($tag) => $tag->issues_count > 0));
+        $this->assertTrue($this->demoIssues()->has('children')->exists());
     }
 
     public function test_ダッシュボードの各指標が意味のある値になる(): void
@@ -94,7 +108,7 @@ class DemoSeederTest extends TestCase
 
         // ユーザーもタスクもタグも積み増されない
         $this->assertSame(1, User::where('email', config('demo.email'))->count());
-        $this->assertSame(100, $this->demo->tasks()->count());
+        $this->assertSame(100, $this->demoIssues()->count());
         $this->assertSame(6, $this->demo->tags()->count());
     }
 }

@@ -2,9 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Subtask;
+use App\Models\Issue;
 use App\Models\Tag;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,13 +23,13 @@ class PageRenderTest extends TestCase
     public function test_ログイン後の各画面が表示される(): void
     {
         $user = User::factory()->create();
-        $task = Task::factory()->for($user)->create(['title' => 'サンプルタスク']);
+        $task = Issue::factory()->forUser($user)->create(['title' => 'サンプルタスク']);
 
         $this->actingAs($user);
 
         $tag = Tag::factory()->for($user)->create(['name' => 'サンプルタグ']);
         $task->tags()->attach($tag);
-        Subtask::factory()->for($task)->create(['title' => 'サンプルサブタスク']);
+        Issue::factory()->childOf($task)->create(['title' => 'サンプルサブタスク']);
 
         $this->get(route('tasks.index'))->assertOk()->assertSee('サンプルタグ');
         $this->get(route('tasks.create'))->assertOk()->assertSee('タスクを作成');

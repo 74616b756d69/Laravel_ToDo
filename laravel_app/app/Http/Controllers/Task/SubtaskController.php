@@ -3,56 +3,86 @@
 namespace App\Http\Controllers\Task;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subtask;
-use App\Models\Task;
+use App\Http\Requests\Task\SubtaskRequest;
+use App\Models\Issue;
+use App\Services\IssueHierarchyService;
+use App\Services\WorkflowService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
+/**
+ * サブタスク＝親を持つ課題。
+ *
+ * 新しく作ることも、既存の課題を引き込むこともできる。
+ * どちらになるかは入力の中身で決まる（IssueHierarchyService::addFrom）。
+ * URL とルート名（subtasks.*）は移行前から据え置き。
+ */
 class SubtaskController extends Controller
 {
-    public function store(Request $request, Task $task): RedirectResponse
-    {
-        $this->authorize('update', $task);
+    public function __construct(private readonly IssueHierarchyService $hierarchy) {}
 
-        $validated = $request->validate(
-            ['title' => ['required', 'string', 'max:120']],
-            attributes: ['title' => 'サブタスク'],
+    public function store(SubtaskRequest $request, Issue $task): RedirectResponse
+    {
+        $child = $this->hierarchy->addFrom(
+            $task,
+            $request->validated()['title'],
+            $request->user()->id,
         );
 
-        $task->subtasks()->create([
-            'title' => $validated['title'],
-            // 末尾に追加する
-            'position' => (int) $task->subtasks()->max('position') + 1,
-        ]);
-
-        return back()->with('status', 'サブタスクを追加しました。');
+        return back()->with('status', $child->wasRecentlyCreated
+            ? 'サブタスクを追加しました。'
+            : "{$child->key()} をサブタスクにしました。");
     }
 
-    public function toggle(Task $task, Subtask $subtask): RedirectResponse
+    public function toggle(Issue $task, Issue $subtask, WorkflowService $workflows): RedirectResponse
     {
         $this->authorize('update', $task);
         $this->ensureBelongsTo($task, $subtask);
 
-        $subtask->update(['is_done' => ! $subtask->is_done]);
+        $workflows->toggleCompletion($subtask);
 
         return back();
     }
 
-    public function destroy(Task $task, Subtask $subtask): RedirectResponse
+    /**
+     * 親子を外す。課題そのものは残り、一覧やボードに戻る。
+     */
+    public function detach(Issue $task, Issue $subtask): RedirectResponse
     {
         $this->authorize('update', $task);
         $this->ensureBelongsTo($task, $subtask);
 
-        $subtask->delete();
+        $this->hierarchy->detach($subtask);
+
+        return back()->with('status', "{$subtask->key()} をサブタスクから外しました。");
+    }
+
+    /**
+     * 課題ごと削除する。
+     *
+     * 引き込んだ既存課題を「外す」つもりで消してしまわないよう、
+     * ここで作られたサブタスクだけを対象にする。
+     */
+    public function destroy(Issue $task, Issue $subtask): RedirectResponse
+    {
+        $this->authorize('delete', $subtask);
+        $this->ensureBelongsTo($task, $subtask);
+
+        abort_unless(
+            $subtask->issue_type->isSubtask(),
+            422,
+            'この課題は独立した課題です。削除ではなく「外す」を使ってください。',
+        );
+
+        $subtask->forceDelete();
 
         return back()->with('status', 'サブタスクを削除しました。');
     }
 
     /**
-     * URL の組み合わせを差し替えて他タスクのサブタスクを操作されないようにする。
+     * URL の組み合わせを差し替えて他の課題の子を操作されないようにする。
      */
-    private function ensureBelongsTo(Task $task, Subtask $subtask): void
+    private function ensureBelongsTo(Issue $task, Issue $subtask): void
     {
-        abort_unless($subtask->task_id === $task->id, 404);
+        abort_unless($subtask->parent_id === $task->id, 404);
     }
 }

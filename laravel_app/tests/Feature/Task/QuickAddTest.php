@@ -3,9 +3,10 @@
 namespace Tests\Feature\Task;
 
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
+use App\Models\Issue;
+use App\Models\Project;
+use App\Models\Status;
 use App\Models\Tag;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -17,12 +18,20 @@ class QuickAddTest extends TestCase
 
     private User $user;
 
+    private Project $project;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Carbon::setTestNow(Carbon::parse('2026-09-24 10:00:00'));
         $this->user = User::factory()->create();
+        $this->project = Project::personalFor($this->user);
+    }
+
+    private function named(string $name): Status
+    {
+        return $this->project->statuses()->where('name', $name)->sole();
     }
 
     protected function tearDown(): void
@@ -40,12 +49,12 @@ class QuickAddTest extends TestCase
             ->post(route('tasks.quick'), ['quick' => '明日 請求書を送る #仕事 !高'])
             ->assertRedirect();
 
-        $task = Task::sole();
+        $task = Issue::sole();
 
         $this->assertSame('請求書を送る', $task->title);
         $this->assertSame('2026-09-25', $task->due_date->toDateString());
         $this->assertSame(TaskPriority::High, $task->priority);
-        $this->assertSame(TaskStatus::Todo, $task->status);
+        $this->assertSame($this->named('To Do')->id, $task->status_id);
         $this->assertTrue($task->tags->contains($tag));
     }
 
@@ -53,7 +62,7 @@ class QuickAddTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.quick'), ['quick' => '牛乳を買う']);
 
-        $task = Task::sole();
+        $task = Issue::sole();
 
         $this->assertSame('牛乳を買う', $task->title);
         $this->assertNull($task->due_date);
@@ -78,7 +87,7 @@ class QuickAddTest extends TestCase
             ->post(route('tasks.quick'), ['quick' => '買い物 #未登録'])
             ->assertSessionHas('status', fn (string $message) => str_contains($message, '未登録のタグは無視しました'));
 
-        $this->assertTrue(Task::sole()->tags->isEmpty());
+        $this->assertTrue(Issue::sole()->tags->isEmpty());
     }
 
     public function test_他人のタグは使えない(): void
@@ -87,7 +96,7 @@ class QuickAddTest extends TestCase
 
         $this->actingAs($this->user)->post(route('tasks.quick'), ['quick' => '作業 #他人のタグ']);
 
-        $this->assertTrue(Task::sole()->tags->isEmpty());
+        $this->assertTrue(Issue::sole()->tags->isEmpty());
     }
 
     public function test_内容が空ならタスクを作らない(): void
@@ -132,12 +141,12 @@ class QuickAddTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '明日 レビューを依頼する !高',
-            'status' => TaskStatus::Doing->value,
+            'status' => $this->named('In Progress')->id,
         ])->assertRedirect();
 
-        $task = Task::sole();
+        $task = Issue::sole();
 
-        $this->assertSame(TaskStatus::Doing, $task->status);
+        $this->assertSame($this->named('In Progress')->id, $task->status_id);
         $this->assertSame(TaskPriority::High, $task->priority);
         $this->assertNull($task->completed_at);
     }
@@ -146,26 +155,23 @@ class QuickAddTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '対応済みの作業',
-            'status' => TaskStatus::Done->value,
+            'status' => $this->named('Done')->id,
         ]);
 
-        $this->assertNotNull(Task::sole()->completed_at);
+        $this->assertNotNull(Issue::sole()->completed_at);
     }
 
     public function test_追加したタスクはそのレーンの末尾に並ぶ(): void
     {
-        Task::factory()->count(3)->for($this->user)->create([
-            'status' => TaskStatus::Todo,
-            'position' => 0,
-        ]);
+        Issue::factory()->count(3)->inStatus($this->named('To Do'))->create(['position' => 0]);
 
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '最後に足したタスク',
-            'status' => TaskStatus::Todo->value,
+            'status' => $this->named('To Do')->id,
         ]);
 
-        $order = $this->user->tasks()
-            ->where('status', TaskStatus::Todo)
+        $order = Issue::query()->visibleTo($this->user)->topLevel()
+            ->where('status_id', $this->named('To Do')->id)
             ->orderBy('position')
             ->orderByDesc('id')
             ->pluck('title');
@@ -177,8 +183,8 @@ class QuickAddTest extends TestCase
     {
         $this->from(route('board'))->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '追加したタスク',
-            'status' => TaskStatus::Todo->value,
-        ])->assertRedirect(route('board').'#task-'.Task::sole()->id);
+            'status' => $this->named('To Do')->id,
+        ])->assertRedirect(route('board').'#task-'.Issue::sole()->id);
     }
 
     public function test_一覧からの追加ではフラグメントを付けない(): void
@@ -193,9 +199,10 @@ class QuickAddTest extends TestCase
         $this->actingAs($this->user)
             ->post(route('tasks.quick'), [
                 'quick' => '調査する',
-                'status' => TaskStatus::Doing->value,
+                'status' => $this->named('In Progress')->id,
             ])
-            ->assertSessionHas('status', fn (string $message) => str_contains($message, '進行中'));
+            // 通知にはステータス名がそのまま出る
+            ->assertSessionHas('status', fn (string $message) => str_contains($message, 'In Progress'));
     }
 
     public function test_不正なレーンは受け付けない(): void
@@ -211,8 +218,9 @@ class QuickAddTest extends TestCase
     {
         $response = $this->actingAs($this->user)->get(route('board'))->assertOk();
 
-        foreach (TaskStatus::cases() as $status) {
-            $response->assertSee('<input type="hidden" name="status" value="'.$status->value.'">', false);
+        // レーンはワークフローのステータス分だけ並ぶ
+        foreach ($this->project->statuses()->get() as $status) {
+            $response->assertSee('<input type="hidden" name="status" value="'.$status->id.'">', false);
         }
     }
 }

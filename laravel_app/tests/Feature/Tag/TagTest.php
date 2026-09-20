@@ -4,9 +4,9 @@ namespace Tests\Feature\Tag;
 
 use App\Enums\TagColor;
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
+use App\Models\Issue;
+use App\Models\Project;
 use App\Models\Tag;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -67,11 +67,11 @@ class TagTest extends TestCase
     public function test_タスクにタグを付け外しできる(): void
     {
         $tag = Tag::factory()->for($this->user)->create();
-        $task = Task::factory()->for($this->user)->create();
+        $task = Issue::factory()->forUser($this->user)->create();
 
         $payload = [
             'title' => $task->title,
-            'status' => TaskStatus::Todo->value,
+            'status' => Project::personalFor($this->user)->initialStatus()->id,
             'priority' => TaskPriority::Low->value,
         ];
 
@@ -88,7 +88,7 @@ class TagTest extends TestCase
 
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => 'タスク',
-            'status' => TaskStatus::Todo->value,
+            'status' => Project::personalFor($this->user)->initialStatus()->id,
             'priority' => TaskPriority::Low->value,
             'tags' => [$othersTag->id],
         ])->assertSessionHasErrors('tags.0');
@@ -97,8 +97,8 @@ class TagTest extends TestCase
     public function test_タグで絞り込める(): void
     {
         $tag = Tag::factory()->for($this->user)->create();
-        Task::factory()->for($this->user)->create(['title' => 'タグ付き'])->tags()->attach($tag);
-        Task::factory()->for($this->user)->create(['title' => 'タグなし']);
+        Issue::factory()->forUser($this->user)->create(['title' => 'タグ付き'])->tags()->attach($tag);
+        Issue::factory()->forUser($this->user)->create(['title' => 'タグなし']);
 
         $this->actingAs($this->user)
             ->get(route('tasks.index', ['tag' => $tag->id]))
@@ -109,7 +109,7 @@ class TagTest extends TestCase
     public function test_タグを削除してもタスクは残る(): void
     {
         $tag = Tag::factory()->for($this->user)->create();
-        $task = Task::factory()->for($this->user)->create();
+        $task = Issue::factory()->forUser($this->user)->create();
         $task->tags()->attach($tag);
 
         $this->actingAs($this->user)->delete(route('tags.destroy', $tag));

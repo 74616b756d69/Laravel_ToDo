@@ -107,6 +107,28 @@ export function createEditor(root) {
     return editor;
 }
 
+/**
+ * ページ内のエディタを起動する。
+ *
+ * ただし閉じた <details> の中にあるものは後回しにする。課題詳細では
+ * コメントの数だけ編集フォームが並ぶので、全部を最初に起動すると
+ * 開きもしないエディタのために Tiptap を何個も抱えることになる。
+ */
 export function bootEditors() {
-    document.querySelectorAll('[data-editor]').forEach(createEditor);
+    document.querySelectorAll('[data-editor]').forEach((element) => {
+        const collapsed = element.closest('details:not([open])');
+
+        if (!collapsed) {
+            createEditor(element);
+            return;
+        }
+
+        // 開いた瞬間に 1 度だけ起動する
+        collapsed.addEventListener('toggle', () => {
+            if (collapsed.open && !element.dataset.editorBooted) {
+                element.dataset.editorBooted = '1';
+                createEditor(element);
+            }
+        });
+    });
 }

@@ -1,6 +1,8 @@
 @php
     $navigation = [
+        ['route' => 'projects.index', 'label' => 'プロジェクト', 'active' => request()->routeIs('projects.*')],
         ['route' => 'tasks.index', 'label' => 'タスク', 'active' => request()->routeIs('tasks.*')],
+        ['route' => 'backlog', 'label' => 'バックログ', 'active' => request()->routeIs('backlog') || request()->routeIs('sprints.*')],
         ['route' => 'board', 'label' => 'ボード', 'active' => request()->routeIs('board')],
         ['route' => 'dashboard', 'label' => '分析', 'active' => request()->routeIs('dashboard')],
         ['route' => 'tags.index', 'label' => 'タグ', 'active' => request()->routeIs('tags.*')],

@@ -47,3 +47,7 @@ if (document.querySelector('[data-editor]')) {
 if (document.querySelector('[data-board]')) {
     import('./features/board').then(({ bootBoard }) => bootBoard());
 }
+
+if (document.querySelector('[data-backlog]')) {
+    import('./features/backlog').then(({ bootBacklog }) => bootBacklog());
+}

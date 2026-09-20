@@ -40,12 +40,14 @@ return [
          */
         'custom_definition' => [
             'id' => 'tiptap-task-content',
-            'rev' => 1,
+            'rev' => 2,
             'debug' => false,
             'elements' => [
                 ['label', 'Inline', 'Inline', 'Common'],
+                // type は checkbox だけ。自由にすると、コメント本文に
+                // 偽のパスワード欄のような紛らわしい部品を描けてしまう
                 ['input', 'Inline', 'Empty', 'Common', [
-                    'type' => 'Text',
+                    'type' => 'Enum#checkbox',
                     'checked' => 'Text',
                     'disabled' => 'Text',
                 ]],

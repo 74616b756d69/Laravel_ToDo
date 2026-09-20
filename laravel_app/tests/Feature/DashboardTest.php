@@ -3,16 +3,16 @@
 namespace Tests\Feature;
 
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
+use App\Models\Issue;
 use App\Models\Tag;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\UsesWorkflow;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, UsesWorkflow;
 
     private User $user;
 
@@ -30,8 +30,8 @@ class DashboardTest extends TestCase
 
     public function test_完了率が計算される(): void
     {
-        Task::factory()->count(3)->for($this->user)->create(['status' => TaskStatus::Todo, 'due_date' => null]);
-        Task::factory()->for($this->user)->completed()->create();
+        Issue::factory()->count(3)->forUser($this->user)->create(['status_id' => $this->statusIdFor($this->user, 'To Do'), 'due_date' => null]);
+        Issue::factory()->forUser($this->user)->completed()->create();
 
         $totals = $this->actingAs($this->user)->get(route('dashboard'))->viewData('totals');
 
@@ -51,8 +51,8 @@ class DashboardTest extends TestCase
 
     public function test_推移は日付が抜けていても連続した系列になる(): void
     {
-        Task::factory()->for($this->user)->create([
-            'status' => TaskStatus::Done,
+        Issue::factory()->forUser($this->user)->create([
+            'status_id' => $this->statusIdFor($this->user, 'Done'),
             'completed_at' => now()->subDays(2),
         ]);
 
@@ -66,11 +66,11 @@ class DashboardTest extends TestCase
 
     public function test_優先度別の内訳は未完了のみを数える(): void
     {
-        Task::factory()->count(2)->for($this->user)->create([
-            'status' => TaskStatus::Todo,
+        Issue::factory()->count(2)->forUser($this->user)->create([
+            'status_id' => $this->statusIdFor($this->user, 'To Do'),
             'priority' => TaskPriority::High,
         ]);
-        Task::factory()->for($this->user)->completed()->create(['priority' => TaskPriority::High]);
+        Issue::factory()->forUser($this->user)->completed()->create(['priority' => TaskPriority::High]);
 
         $byPriority = $this->actingAs($this->user)->get(route('dashboard'))->viewData('byPriority');
 
@@ -81,8 +81,8 @@ class DashboardTest extends TestCase
     public function test_連続達成日数が数えられる(): void
     {
         foreach ([0, 1, 2, 4] as $daysAgo) {
-            Task::factory()->for($this->user)->create([
-                'status' => TaskStatus::Done,
+            Issue::factory()->forUser($this->user)->create([
+                'status_id' => $this->statusIdFor($this->user, 'Done'),
                 'completed_at' => now()->subDays($daysAgo),
             ]);
         }
@@ -93,8 +93,8 @@ class DashboardTest extends TestCase
 
     public function test_他人のデータは集計に混ざらない(): void
     {
-        Task::factory()->count(5)->for(User::factory())->create();
-        Task::factory()->for($this->user)->create(['due_date' => null]);
+        Issue::factory()->count(5)->create();
+        Issue::factory()->forUser($this->user)->create(['due_date' => null]);
 
         $this->assertSame(
             1,
@@ -107,9 +107,9 @@ class DashboardTest extends TestCase
         $少 = Tag::factory()->for($this->user)->create(['name' => 'あまり使わない']);
         $多 = Tag::factory()->for($this->user)->create(['name' => 'よく使う']);
 
-        Task::factory()->for($this->user)->create()->tags()->attach($少);
-        Task::factory()->count(3)->for($this->user)->create()
-            ->each(fn (Task $task) => $task->tags()->attach($多));
+        Issue::factory()->forUser($this->user)->create()->tags()->attach($少);
+        Issue::factory()->count(3)->forUser($this->user)->create()
+            ->each(fn (Issue $task) => $task->tags()->attach($多));
 
         $topTags = $this->actingAs($this->user)->get(route('dashboard'))->viewData('topTags');
 

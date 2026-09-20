@@ -3,15 +3,15 @@
 namespace Tests\Feature\Task;
 
 use App\Enums\TaskPriority;
-use App\Enums\TaskStatus;
-use App\Models\Task;
+use App\Models\Issue;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\UsesWorkflow;
 use Tests\TestCase;
 
 class TaskContentTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, UsesWorkflow;
 
     private User $user;
 
@@ -27,11 +27,11 @@ class TaskContentTest extends TestCase
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => 'リッチテキスト',
             'content' => '<p>安全な本文</p><script>alert(1)</script>',
-            'status' => TaskStatus::Todo->value,
+            'status' => $this->statusIdFor($this->user, 'To Do'),
             'priority' => TaskPriority::Low->value,
         ]);
 
-        $task = Task::sole();
+        $task = Issue::sole();
 
         $this->assertStringContainsString('安全な本文', $task->content);
         $this->assertStringNotContainsString('script', $task->content);
@@ -42,16 +42,16 @@ class TaskContentTest extends TestCase
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => 'リッチテキスト',
             'content' => '<h2>見出し</h2><p>本文です</p>',
-            'status' => TaskStatus::Todo->value,
+            'status' => $this->statusIdFor($this->user, 'To Do'),
             'priority' => TaskPriority::Low->value,
         ]);
 
-        $this->assertSame('見出し 本文です', Task::sole()->content_text);
+        $this->assertSame('見出し 本文です', Issue::sole()->content_text);
     }
 
     public function test_検索はhtmlタグにヒットしない(): void
     {
-        Task::factory()->for($this->user)->create([
+        Issue::factory()->forUser($this->user)->create([
             'title' => 'タグに引っかからないこと',
             'content' => '<p>本文</p>',
         ]);

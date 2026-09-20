@@ -75,7 +75,7 @@
 
                         <a href="{{ route('tasks.index', ['tag' => $tag->id]) }}"
                            class="text-xs text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
-                            {{ $tag->tasks_count }} 件のタスク
+                            {{ $tag->issues_count }} 件のタスク
                         </a>
 
                         <form action="{{ route('tags.destroy', $tag) }}" method="POST"

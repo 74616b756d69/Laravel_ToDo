@@ -53,6 +53,88 @@
     </div>
     <p class="mt-1.5 text-xs text-slate-400">完了率 {{ $totals['rate'] }}%</p>
 
+    {{--
+        バーンダウン。進行中スプリントがあるときだけ出す。
+        実績（折れ線）と理想（破線）を重ねて、遅れているかどうかを一目で見せる。
+    --}}
+    @if ($burndown)
+        @php
+            $bw = 900; $bh = 200;
+            $bPadL = 36; $bPadR = 12; $bPadT = 16; $bPadB = 26;
+            $bPlotW = $bw - $bPadL - $bPadR;
+            $bPlotH = $bh - $bPadT - $bPadB;
+            $bTotal = max($burndown['total'], 1);
+            $bLast = max($burndown['days']->count() - 1, 1);
+            // 値 → 座標。残量 0 が下端、総量が上端
+            $bx = fn (int $i) => $bPadL + $bPlotW * $i / $bLast;
+            $by = fn (float $v) => $bPadT + $bPlotH * (1 - $v / $bTotal);
+
+            $actual = $burndown['days']->filter(fn ($d) => $d['remaining'] !== null)->values();
+            $actualPath = $actual
+                ->map(fn ($d, $i) => ($i === 0 ? 'M' : 'L').round($bx($i), 1).','.round($by($d['remaining']), 1))
+                ->implode(' ');
+            $idealPath = 'M'.round($bx(0), 1).','.round($by($bTotal), 1)
+                .' L'.round($bx($bLast), 1).','.round($by(0), 1);
+            $remainingNow = $actual->last()['remaining'] ?? $bTotal;
+            $idealNow = $burndown['days'][$actual->count() - 1]['ideal'] ?? $bTotal;
+        @endphp
+
+        <section class="viz mt-8">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 class="text-sm font-semibold">バーンダウン</h2>
+                <span class="text-xs text-slate-500 dark:text-slate-400">
+                    {{ $burndown['sprint']->name }}
+                    @if ($burndown['sprint']->period()) ・{{ $burndown['sprint']->period() }} @endif
+                </span>
+                <p class="ml-auto text-xs text-slate-400">
+                    残り {{ $remainingNow }} / {{ $burndown['total'] }} {{ $burndown['unit'] }}
+                    @if ($remainingNow > $idealNow)
+                        <span class="text-rose-500 dark:text-rose-400">（理想より遅れ）</span>
+                    @else
+                        <span class="text-emerald-600 dark:text-emerald-400">（順調）</span>
+                    @endif
+                </p>
+            </div>
+
+            <svg viewBox="0 0 {{ $bw }} {{ $bh }}" class="mt-3 w-full" role="img"
+                 aria-label="{{ $burndown['sprint']->name }}のバーンダウン。残り{{ $remainingNow }}{{ $burndown['unit'] }}">
+                @foreach ([0, $bTotal] as $tick)
+                    <line x1="{{ $bPadL }}" y1="{{ $by($tick) }}" x2="{{ $bw - $bPadR }}" y2="{{ $by($tick) }}"
+                          stroke="var(--viz-grid)" stroke-width="1" />
+                    <text x="{{ $bPadL - 8 }}" y="{{ $by($tick) + 4 }}" text-anchor="end"
+                          class="fill-slate-400 text-[11px] tabular-nums">{{ $tick }}</text>
+                @endforeach
+
+                {{-- 理想線は破線。実績と competing しないよう細く薄く --}}
+                <path d="{{ $idealPath }}" fill="none" stroke="var(--viz-grid)"
+                      stroke-width="1.5" stroke-dasharray="4 4" />
+
+                @if ($actual->count() > 1)
+                    <path d="{{ $actualPath }}" fill="none" stroke="var(--viz-series)"
+                          stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                @endif
+
+                @foreach ($actual as $i => $day)
+                    <circle cx="{{ $bx($i) }}" cy="{{ $by($day['remaining']) }}" r="3"
+                            fill="var(--viz-series)">
+                        <title>{{ $day['date']->isoFormat('M月D日(ddd)') }}：残り {{ $day['remaining'] }} {{ $burndown['unit'] }}</title>
+                    </circle>
+                @endforeach
+
+                @foreach ($burndown['days'] as $i => $day)
+                    @if ($i % 2 === 0 || $i === $bLast)
+                        <text x="{{ $bx($i) }}" y="{{ $bh - 8 }}" text-anchor="middle"
+                              class="fill-slate-400 text-[11px] tabular-nums">{{ $day['date']->format('n/j') }}</text>
+                    @endif
+                @endforeach
+            </svg>
+
+            <p class="mt-1.5 text-xs text-slate-400">
+                実線が実績、破線が理想。{{ $burndown['unit'] === 'ポイント' ? 'ストーリーポイント' : '課題の件数' }}で数えています。
+            </p>
+        </section>
+    @endif
+
     {{-- この画面の主役。全幅で大きく取る --}}
     <section class="viz mt-8">
         <h2 class="text-sm font-semibold">日別の完了数</h2>
@@ -192,7 +274,7 @@
                         <a href="{{ route('tasks.index', ['tag' => $tag->id]) }}"
                            class="inline-flex items-baseline gap-2 rounded-full px-3 py-1.5 text-xs ring-1 ring-inset {{ $tag->color->badgeClasses() }}">
                             {{ $tag->name }}
-                            <span class="font-semibold tabular-nums">{{ $tag->tasks_count }}</span>
+                            <span class="font-semibold tabular-nums">{{ $tag->issues_count }}</span>
                         </a>
                     </li>
                 @endforeach

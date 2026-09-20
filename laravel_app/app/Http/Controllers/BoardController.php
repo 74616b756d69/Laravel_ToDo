@@ -2,38 +2,57 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\TaskStatus;
-use App\Models\Task;
+use App\Models\Issue;
+use App\Models\Project;
+use App\Models\Status;
+use App\Services\IssueOrderingService;
+use App\Services\WorkflowService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class BoardController extends Controller
 {
+    public function __construct(
+        private readonly WorkflowService $workflows,
+        private readonly IssueOrderingService $ordering,
+    ) {}
+
     public function index(): View
     {
-        $tasks = Auth::user()->tasks()
-            ->with('tags')
+        // ボードは 1 プロジェクトのワークフローを映すものなので、
+        // レーンの出どころになるプロジェクトを 1 つ決める
+        $project = Project::personalFor(Auth::user());
+
+        $statuses = $project->statuses()->get();
+
+        $tasks = Issue::query()
+            ->visibleTo(Auth::user())
+            ->topLevel()
+            ->where('project_id', $project->id)
+            ->with('tags', 'project', 'assignee', 'status')
             ->withCount([
-                'subtasks',
-                'subtasks as done_subtasks_count' => fn ($query) => $query->where('is_done', true),
+                'children',
+                'children as done_children_count' => fn (Builder $query) => $query
+                    ->whereHas('status', fn (Builder $query) => $query->where('category', 'done')),
             ])
             ->orderBy('position')
             ->orderByDesc('id')
             ->get();
 
         return view('board.index', [
-            // ステータスごとにレーン分けする。空のレーンも必ず用意する
-            'lanes' => collect(TaskStatus::cases())->mapWithKeys(fn (TaskStatus $status) => [
-                $status->value => [
-                    'status' => $status,
-                    'tasks' => $tasks->where('status', $status)->values(),
-                ],
+            'project' => $project,
+            // レーンは statuses から動的に作る。空のレーンも必ず用意する
+            'lanes' => $statuses->map(fn (Status $status) => [
+                'status' => $status,
+                'tasks' => $tasks->where('status_id', $status->id)->values(),
             ]),
+            // どのレーンへ運べるかを画面側で判定するための表
+            'allowedTransitions' => $this->allowedTransitionMap($project, $statuses),
         ]);
     }
 
@@ -41,50 +60,72 @@ class BoardController extends Controller
      * ドラッグ＆ドロップの結果を保存する。
      * 移動先レーンの並び順をまとめて受け取り、position を振り直す。
      */
-    public function move(Request $request, Task $task): JsonResponse
+    public function move(Request $request, Issue $task): JsonResponse
     {
         $this->authorize('update', $task);
 
         $validated = $request->validate([
-            'status' => ['required', Rule::enum(TaskStatus::class)],
+            'status' => ['required', 'integer'],
             'ids' => ['required', 'array'],
             'ids.*' => ['integer'],
         ]);
 
-        $status = TaskStatus::from($validated['status']);
+        // 他プロジェクトのステータスを指定されても弾けるよう、課題側から引く
+        $target = $task->project->statuses()->findOrFail($validated['status']);
 
-        // 送られてきた ID のうち、自分のタスクだけを対象にする
-        $ownedIds = $this->ownedIdsInOrder($validated['ids']);
+        // 許可されていない遷移なら例外。IllegalTransitionException が 422 を返し、
+        // 画面側がカードを元の位置に戻して理由を表示する
+        $this->workflows->assertAllowed($task, $target);
 
-        DB::transaction(function () use ($task, $status, $ownedIds) {
-            if ($task->status !== $status) {
-                $task->forceFill([
-                    'status' => $status,
-                    'completed_at' => $status === TaskStatus::Done ? ($task->completed_at ?? now()) : null,
-                ])->save();
-            }
-
-            foreach ($ownedIds as $position => $id) {
-                Task::whereKey($id)->update(['position' => $position]);
-            }
+        DB::transaction(function () use ($task, $target, $validated) {
+            $this->workflows->transition($task, $target);
+            $this->ordering->apply(Auth::user(), $validated['ids']);
         });
 
+        $task->refresh();
+
         return response()->json([
-            'status' => $status->value,
-            'completed_at' => $task->fresh()->completed_at?->toIso8601String(),
+            'status' => $target->id,
+            'statusName' => $target->name,
+            'completed_at' => $task->completed_at?->toIso8601String(),
         ]);
     }
 
     /**
-     * 受け取った順序を保ったまま、自分のタスクの ID だけを取り出す。
+     * 「どのレーンからどのレーンへ運べるか」の表。
      *
-     * @param  array<int, int>  $ids
-     * @return Collection<int, int>
+     * from のステータス ID => 運べる to のステータス ID の配列。
+     * 自分自身（レーン内の並べ替え）は常に含める。
+     *
+     * @param  Collection<int, Status>  $statuses
+     * @return array<int, array<int, int>>
      */
-    private function ownedIdsInOrder(array $ids): Collection
+    private function allowedTransitionMap(Project $project, Collection $statuses): array
     {
-        $owned = Auth::user()->tasks()->whereKey($ids)->pluck('id')->flip();
+        $transitions = $project->transitions()->get();
+        $hasRules = $transitions->isNotEmpty();
 
-        return collect($ids)->filter(fn (int $id) => $owned->has($id))->values();
+        return $statuses->mapWithKeys(fn (Status $from) => [
+            $from->id => $statuses
+                ->filter(function (Status $to) use ($from, $transitions, $hasRules) {
+                    if ($from->id === $to->id) {
+                        return true;
+                    }
+
+                    // 遷移が 1 本も定義されていなければ全許可（WorkflowService と同じ扱い）
+                    if (! $hasRules) {
+                        return true;
+                    }
+
+                    return $transitions->contains(
+                        fn ($transition) => $transition->to_status_id === $to->id
+                            && ($transition->from_status_id === null
+                                || $transition->from_status_id === $from->id),
+                    );
+                })
+                ->pluck('id')
+                ->values()
+                ->all(),
+        ])->all();
     }
 }
