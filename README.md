@@ -6,7 +6,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.3-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-88_passed-3FB950?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-101_passed-3FB950?style=flat-square)
 
 ---
 
@@ -42,6 +42,7 @@
 | 並び替え | 新しい順 / 古い順 / 期限が近い順 / 優先度が高い順 |
 | ページネーション | 10 件ごと。絞り込み条件はページ送り後も保持 |
 | ダークモード | OS 設定に追従しつつ、手動切り替えも可能（選択は端末に保存） |
+| **デモアカウント** | ログイン画面から 1 クリックで、タスク 100 件入りのアカウントを体験可能 |
 
 ---
 
@@ -54,7 +55,7 @@
 | エディタ | Tiptap v3（ProseMirror）+ HTMLPurifier によるサーバー側サニタイズ |
 | ドラッグ&ドロップ | SortableJS |
 | データベース | MySQL 8.3（ローカル開発・テストは SQLite） |
-| テスト | PHPUnit 11（Feature 75 件 / Unit 13 件） |
+| テスト | PHPUnit 11（Feature 88 件 / Unit 13 件） |
 | 品質管理 | Laravel Pint / GitHub Actions |
 | 実行環境 | Docker / Docker Compose |
 
@@ -149,13 +150,14 @@ php artisan test
 ```
 
 ```
-Tests:  88 passed (194 assertions)
+Tests:  101 passed (241 assertions)
 ```
 
 | テストクラス | 検証内容 |
 |---|---|
 | `Auth\RegistrationTest` | 登録処理、重複メール、パスワード確認・強度 |
 | `Auth\AuthenticationTest` | ログイン／ログアウト、セッション再生成、回数制限 |
+| `Auth\DemoLoginTest` | デモログインの動作、セッション再生成、設定による無効化 |
 | `Task\TaskCrudTest` | CRUD、完了トグル、バリデーション、ソフトデリート |
 | `Task\TaskAuthorizationTest` | 他ユーザーのタスクへの操作がすべて 403 になること |
 | `Task\TaskFilterTest` | 検索・絞り込み・並び替え・ページング・集計 |
@@ -167,6 +169,7 @@ Tests:  88 passed (194 assertions)
 | `PageRenderTest` | 全画面の描画（データ 0 件のケースを含む）と 404 |
 | `Unit\TaskTest` | 期限切れ・期限間近の判定ロジック |
 | `Unit\RichTextTest` | XSS 除去・チェックリスト構造の保持・平文変換 |
+| `DemoSeederTest` | デモデータの件数・内訳・各指標が意味のある値になること |
 
 ---
 
@@ -227,11 +230,34 @@ php artisan migrate --seed   # デモデータ（タスク100件・タグ6種）
 php artisan serve
 ```
 
-デモアカウント: `demo@example.com` / `password123`
+---
 
-シーダーはタスク 100 件を、ステータス・優先度・期限・タグ・サブタスクを散らして作成します。
-完了日は過去 2 週間に分散させているため、ダッシュボードの推移グラフやページネーションも
-投入直後から確認できます。
+## 🧑‍💻 デモアカウント
+
+**ログイン画面の「デモアカウントでログイン」ボタンから、登録せずにそのまま体験できます。**
+手入力する場合は `demo@example.com` / `password123` です。
+
+`DemoUserSeeder` は「ログインした瞬間にどの画面も成立していること」を狙って、
+ランダム任せにせず件数を設計しています。
+
+| 作られるもの | 内容 |
+|---|---|
+| タスク | 100 件（未着手・進行中・完了をバランスよく配分） |
+| 完了履歴 | 過去 14 日に分散。直近 5 日は必ず 1 件以上入れて**連続達成日数**が途切れないようにする |
+| 優先度 | 未完了タスクを 高:中:低 ≒ 2:3:3 で配分し、内訳グラフが 1 色に偏らないようにする |
+| 期限 | 期限切れ・期限間近・余裕あり・未設定を混ぜ、色分けの挙動を確認できるようにする |
+| タグ | 6 種（仕事 / プライベート / 学習 / 至急 / 事務手続き / あとで読む） |
+| サブタスク | 約 4 分の 1 のタスクに 2〜5 件（進捗バーの確認用） |
+| 本文 | 約 8 割に見出し・リスト・チェックリスト入りのリッチテキスト |
+| 別ユーザー | `other@example.com` にもタスクを作成し、データが分離されていることを確認できる |
+
+再実行しても件数が積み増されないよう、シーダーは冪等にしています。
+
+公開時にデモの入口を閉じる場合は、環境変数で無効化できます。
+
+```dotenv
+DEMO_LOGIN_ENABLED=false
+```
 
 ---
 
@@ -257,7 +283,8 @@ laravel_app/
 │       ├── board/ · dashboard/ · tags/
 │       └── partials/
 ├── database/
-│   ├── factories/ · seeders/   # デモデータ生成
+│   ├── factories/
+│   ├── seeders/                # DemoUserSeeder（分析データ入りのデモアカウント）
 │   └── migrations/
 └── tests/
     ├── Feature/ · Unit/

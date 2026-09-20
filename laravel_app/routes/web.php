@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
@@ -18,6 +19,9 @@ Route::middleware('guest')->group(function () {
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // デモアカウントでのワンクリックログイン（config/demo.php で無効化できる）
+    Route::post('login/demo', DemoLoginController::class)->name('login.demo');
 });
 
 Route::middleware('auth')->group(function () {

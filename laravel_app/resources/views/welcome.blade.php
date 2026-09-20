@@ -29,6 +29,19 @@
             @endauth
         </div>
 
+        @guest
+            @if (config('demo.enabled'))
+                {{-- 登録せずに中身を見たい人向けの導線 --}}
+                <form action="{{ route('login.demo') }}" method="POST" class="mt-4">
+                    @csrf
+                    <button type="submit"
+                            class="text-sm font-medium text-brand-700 underline underline-offset-4 transition hover:text-brand-900 dark:text-brand-300 dark:hover:text-brand-100">
+                        登録せずにデモを試す（タスク100件入り）
+                    </button>
+                </form>
+            @endif
+        @endguest
+
         <div class="mt-14 grid gap-4 text-left sm:grid-cols-3">
             @foreach ([
                 ['flag', '優先度とステータス', '未着手・進行中・完了と3段階の優先度で、今やるべきことが一目でわかります。'],

@@ -11,6 +11,8 @@ services:
       APP_LOCALE: ja
       # 初回起動時にデモデータ（タスク100件）を投入する。不要なら false に
       SEED_DATABASE: "true"
+      # ログイン画面の「デモアカウントでログイン」ボタン
+      DEMO_LOGIN_ENABLED: "true"
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
