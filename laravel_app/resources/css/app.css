@@ -5,7 +5,81 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* OS 設定ではなく html.dark を見てダークモードを切り替える */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+
+    --color-brand-50: oklch(0.97 0.02 265);
+    --color-brand-100: oklch(0.93 0.04 265);
+    --color-brand-200: oklch(0.87 0.07 265);
+    --color-brand-300: oklch(0.79 0.11 265);
+    --color-brand-400: oklch(0.7 0.15 265);
+    --color-brand-500: oklch(0.62 0.19 265);
+    --color-brand-600: oklch(0.55 0.2 265);
+    --color-brand-700: oklch(0.47 0.18 265);
+    --color-brand-800: oklch(0.39 0.14 265);
+    --color-brand-900: oklch(0.31 0.1 265);
+
+    --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    }
+
+    /* 背景のほのかなグラデーション。ページ全体の空気を作る */
+    body::before {
+        content: '';
+        @apply pointer-events-none fixed inset-0 -z-10 opacity-70 dark:opacity-100;
+        background:
+            radial-gradient(60rem 30rem at 15% -10%, var(--color-brand-100), transparent 60%),
+            radial-gradient(45rem 25rem at 110% 10%, oklch(0.93 0.05 200), transparent 55%);
+    }
+
+    .dark body::before {
+        background:
+            radial-gradient(60rem 30rem at 15% -10%, oklch(0.35 0.12 265 / 0.45), transparent 60%),
+            radial-gradient(45rem 25rem at 110% 10%, oklch(0.35 0.1 200 / 0.35), transparent 55%);
+    }
+
+    :focus-visible {
+        @apply outline-2 outline-offset-2 outline-brand-500;
+    }
+}
+
+@layer components {
+    .card {
+        @apply rounded-2xl border border-white/60 bg-white/80 shadow-sm shadow-slate-900/5 backdrop-blur
+               dark:border-white/10 dark:bg-slate-900/70 dark:shadow-none;
+    }
+
+    .field {
+        @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
+               shadow-sm transition placeholder:text-slate-400
+               focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none
+               dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500;
+    }
+
+    .field-label {
+        @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
+    }
 }

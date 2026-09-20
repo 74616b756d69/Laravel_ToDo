@@ -2,99 +2,145 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TaskPriority;
+use App\Enums\TaskStatus;
+use App\Http\Requests\Task\TaskRequest;
+use App\Models\Task;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; //ログイン情報取得に使用
+use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class TaskController extends Controller
 {
-    //
-    function index() {
-        // Atuh::user()でログインしているユーザーの情報を取得
-        $user = Auth::user();
+    /**
+     * 並び替えの選択肢。キーはクエリ文字列、値は画面表示のラベル。
+     */
+    private const SORTS = [
+        'latest' => '新しい順',
+        'oldest' => '古い順',
+        'due_date' => '期限が近い順',
+        'priority' => '優先度が高い順',
+    ];
 
-        // tasksリレーションを」使用してユーザーに紐づくタスクを取得
-        $tasks = $user->tasks;
-        return view("task.index", compact("tasks"));
-    }
+    public function index(Request $request): View
+    {
+        $filters = $this->filters($request);
 
-    // createメソットを追加
-    function create() {
-        return view("task.create");
-    }
+        $tasks = $this->query()
+            ->search($filters['keyword'])
+            ->status($filters['status'])
+            ->priority($filters['priority'])
+            ->when($filters['overdue'], fn ($query) => $query->overdue())
+            ->sorted($filters['sort'])
+            ->paginate(10)
+            ->withQueryString();
 
-    // storeメソッドを追加
-    function store(Request $request) {
-        // それぞれの入力値を取得
-        $title = $request["title"];
-        $content = $request["content"];
-
-        // Atuh::user()でログインしているユーザーの情報を取得
-        $user = Auth::user();
-
-        // tasksリレーションを使用してユーザーに紐づくタスクを作成
-        $user->tasks()->create([
-            "title" => $title,
-            "content" => $content
+        return view('tasks.index', [
+            'tasks' => $tasks,
+            'filters' => $filters,
+            'summary' => $this->summary(),
+            'sorts' => self::SORTS,
         ]);
-
-        //タスク一覧画面にリダイレクト
-        return redirect()->route("task");
     }
 
-    // ルーティングの{id}は第一引数に入る
-    function show($id) {
-        // Atuh::user()でログインしているユーザーの情報を取得
-        $user = Auth::user();
-
-        //tasksリレーションを使用してユーザーに紐づくタスクを取得
-        // $idとtasksテーブルのidが一致するものを取得
-        $task = $user->tasks->find($id);
-
-        return view("task.show", compact("task"));
+    public function create(): View
+    {
+        return view('tasks.create', ['task' => new Task(['status' => TaskStatus::Todo, 'priority' => TaskPriority::Medium])]);
     }
 
-    //editメソッドを追加
-    function edit($id) {
-        //Atuh::user()ログインしているユーザ-の情報を取得
-        $user = Auth::user();
-        
-        // tasksエイレーションを使用してユーザーに紐づくタスクを取得
-        // $idとtasksテーブルのidが一致するものを取得
-        $task = $user->tasks->find($id);
+    public function store(TaskRequest $request): RedirectResponse
+    {
+        $task = Auth::user()->tasks()->create($request->taskAttributes());
 
-        return view("task.edit", compact("task"));
+        return redirect()->route('tasks.show', $task)
+            ->with('status', "「{$task->title}」を追加しました。");
     }
 
-    //updateメソッドを追加
-    function update(Request $request, $id) {
-        // それぞれの入力値を取得
-        $title = $request["title"];
-        $content = $request["content"];
+    public function show(Task $task): View
+    {
+        $this->authorize('view', $task);
 
-        // Auth::user()でログインしているユーザーの情報を取得
-        $user = Auth::user();
-
-        // tasksリレーションを使用してユーザーに紐づくタスクを取得
-        // $idとtasksテーブルのidが一致するものを取得
-        // updateメソッドで更新
-        $user->tasks()->find($id)->update([
-            "title" => $title,
-            "content" => $content
-        ]);
-
-        return redirect()->route("task");
+        return view('tasks.show', compact('task'));
     }
 
-    // destroyメソッドを追加
-    function destroy($id) {
-        // Atuh::user()でログインしているユーザーの情報を取得
-        $user = Auth::user();
+    public function edit(Task $task): View
+    {
+        $this->authorize('update', $task);
 
-        // tasksリレーションを使用してユーザーに紐づくタスクを取得
-        // $idとtasksテーブルのidが一致するものを取得
-        // deleteメソッドで削除
-        $user->tasks()->find($id)->delete();
+        return view('tasks.edit', compact('task'));
+    }
 
-        return redirect()->route("task");
+    public function update(TaskRequest $request, Task $task): RedirectResponse
+    {
+        $this->authorize('update', $task);
+
+        $task->update($request->taskAttributes());
+
+        return redirect()->route('tasks.show', $task)
+            ->with('status', "「{$task->title}」を更新しました。");
+    }
+
+    public function destroy(Task $task): RedirectResponse
+    {
+        $this->authorize('delete', $task);
+
+        $task->delete();
+
+        return redirect()->route('tasks.index')
+            ->with('status', "「{$task->title}」を削除しました。");
+    }
+
+    /**
+     * ログインユーザーのタスクだけを対象にしたクエリ。
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Task>
+     */
+    private function query()
+    {
+        return Auth::user()->tasks()->getQuery();
+    }
+
+    /**
+     * 一覧上部のダッシュボード用集計。
+     *
+     * @return array<string, int>
+     */
+    private function summary(): array
+    {
+        // ステータス別の件数を 1 クエリで取得する
+        $counts = $this->query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $byStatus = collect(TaskStatus::cases())
+            ->mapWithKeys(fn (TaskStatus $status) => [
+                $status->value => (int) $counts->get($status->value, 0),
+            ]);
+
+        return [
+            ...$byStatus,
+            'total' => $byStatus->sum(),
+            'overdue' => $this->query()->overdue()->count(),
+        ];
+    }
+
+    /**
+     * クエリ文字列を検証済みの絞り込み条件に変換する。
+     *
+     * @return array{keyword: ?string, status: ?TaskStatus, priority: ?TaskPriority, overdue: bool, sort: string}
+     */
+    private function filters(Request $request): array
+    {
+        $sort = (string) $request->query('sort');
+
+        return [
+            'keyword' => $request->string('keyword')->trim()->value() ?: null,
+            'status' => TaskStatus::tryFrom((string) $request->query('status')),
+            'priority' => TaskPriority::tryFrom((string) $request->query('priority')),
+            'overdue' => $request->boolean('overdue'),
+            'sort' => array_key_exists($sort, self::SORTS) ? $sort : 'latest',
+        ];
     }
 }

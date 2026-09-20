@@ -1,51 +1,25 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Task\TaskCompletionController;
+use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TopController;
-use App\Http\Controllers\LoginController; #ログインコントローラー
-use App\Http\Controllers\SignUpController; #サインアップコントローラー
-use App\Http\Controllers\TaskController; #タスクコントローラー
 
-Route::get('/', function () {
-    return view('welcome');
+Route::view('/', 'welcome')->name('welcome');
+
+Route::middleware('guest')->group(function () {
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store']);
+
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
 });
 
-Route::get('/top', [TopController::class, 'index'])->name("top");
-
-// Route::prefix("共通のパス")->group(function() {
-// prefixを使うと、共通のパスを持つルーティングをまとめることができる
-Route::prefix('sign_up')->group(function () {
-    // サインアップフォーム
-    Route::get('/', [SignUpController::class, 'index'])->name("sign_up");
-    //サインアップ処理
-    Route::post('/', [SignUpController::class, 'store'])->name("sign_up.store");
-});
-
-Route::prefix('login')->group(function () {
-    // ログインフォーム
-    Route::get('/', [LoginController::class, 'index'])->name("login");
-    // ログイン処理
-    Route::post('/', [LoginController::class, 'store'])->name("login.store");
-});
-
-//`Route::middleware(`auth`)->group(function () {` 内に入れると許可ルーティングになる
 Route::middleware('auth')->group(function () {
-    Route::prefix('task')->group(function () {
-        // タスク一覧ページ
-        Route::get('/', [TaskController::class, 'index'])->name("task");
-        // タスク作成ページ
-        Route::get('/create', [TaskController::class, 'create'])->name("task.create");
-        // タスク作成処理
-        Route::post('/', [TaskController::class, 'store'])->name("task.store");
-        //タスク詳細ページ
-        //波括弧で囲んだ値は、任意の文字になる
-        //例:/task/1, /task/2 などでアクセスできる
-        Route::get('/{id}', [TaskController::class, 'show'])->name("task.show");
-        //タスク編集ページ
-        Route::get('/{id}/edit', [TaskController::class, 'edit'])->name("task.edit");
-        //タスク編集処理
-        Route::put('/{id}', [TaskController::class, 'update'])->name("task.update");
-        //タスクの削除処理
-        Route::delete('/{id}', [TaskController::class, 'destroy'])->name("task.destroy");
-    });
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    Route::resource('tasks', TaskController::class);
+    // 一覧から 1 クリックで完了状態を切り替えるための専用ルート
+    Route::patch('tasks/{task}/completion', TaskCompletionController::class)->name('tasks.completion');
 });
