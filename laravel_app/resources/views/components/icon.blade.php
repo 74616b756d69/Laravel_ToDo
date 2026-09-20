@@ -17,10 +17,12 @@
         'alert' => '<path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         'sparkles' => '<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/>',
+        // Enter キーの記号。送信ボタンに使う
+        'enter' => '<path d="M20 5v6a3 3 0 0 1-3 3H5"/><path d="m9 10-4 4 4 4"/>',
     ];
 @endphp
 
-<svg {{ $attributes->merge(['class' => 'size-5', 'aria-hidden' => 'true']) }}
+<svg {{ $attributes->merge(['class' => 'icon', 'aria-hidden' => 'true']) }}
      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
      stroke-linecap="round" stroke-linejoin="round">
     {!! $paths[$name] ?? '' !!}

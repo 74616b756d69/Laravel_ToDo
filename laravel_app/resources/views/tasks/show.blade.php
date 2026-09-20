@@ -85,13 +85,13 @@
                 </ul>
             @endif
 
-            <form action="{{ route('subtasks.store', $task) }}" method="POST" class="flex gap-2">
+            <form action="{{ route('subtasks.store', $task) }}" method="POST" class="relative">
                 @csrf
                 <input type="text" name="title" maxlength="120" required
-                       placeholder="サブタスクを追加" class="field flex-1 py-2 text-sm">
-                <button type="submit"
-                        class="shrink-0 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
-                    追加
+                       placeholder="サブタスクを追加" class="field py-2 pr-10 text-sm">
+                <button type="submit" aria-label="サブタスクを追加" title="追加（Enter）"
+                        class="absolute inset-y-1 right-1 grid w-8 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white">
+                    <x-icon name="enter" class="size-4" />
                 </button>
             </form>
             <x-input-error :messages="$errors->get('title')" />

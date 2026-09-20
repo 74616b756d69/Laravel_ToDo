@@ -11,10 +11,36 @@
             </p>
         </div>
         <a href="{{ route('tasks.create') }}"
-           class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 sm:hidden">
-            <x-icon name="plus" class="size-4" /> 新規タスク
+           class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            詳しく入力して作成 →
         </a>
     </div>
+
+    {{--
+        クイック追加。1 行に書いた期限・タグ・優先度をサーバー側で解釈する。
+        JS に依存しない通常のフォーム送信で完結させている。
+    --}}
+    <form action="{{ route('tasks.quick') }}" method="POST" class="mb-5">
+        @csrf
+        <div class="relative">
+            <input type="text" name="quick" value="{{ old('quick') }}" maxlength="200" required autofocus
+                   placeholder="明日 請求書を送る #仕事 !高"
+                   class="field pr-11 @error('quick') border-rose-400 @enderror">
+            {{-- 送信は入力欄の中に置く。Enter でも送れることをアイコンで示す --}}
+            <button type="submit" aria-label="追加" title="追加（Enter）"
+                    class="absolute inset-y-1 right-1 grid w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white">
+                <x-icon name="enter" class="size-4" />
+            </button>
+        </div>
+
+        <x-input-error :messages="$errors->get('quick')" />
+
+        <p class="mt-1.5 text-xs text-slate-400">
+            <code class="text-slate-500 dark:text-slate-400">#タグ</code>
+            <code class="ml-2 text-slate-500 dark:text-slate-400">!高 / !中 / !低</code>
+            <span class="ml-2">日付（明日・来週金曜・3日後・9/25 など）を書くと自動で設定されます</span>
+        </p>
+    </form>
 
     {{-- 集計カード。クリックでそのままフィルタとしても働く --}}
     <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">

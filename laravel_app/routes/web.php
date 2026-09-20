@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\Task\QuickAddController;
 use App\Http\Controllers\Task\SubtaskController;
 use App\Http\Controllers\Task\TaskCompletionController;
 use App\Http\Controllers\TaskController;
@@ -32,6 +33,9 @@ Route::middleware('auth')->group(function () {
     // カンバンボード
     Route::get('board', [BoardController::class, 'index'])->name('board');
     Route::patch('board/{task}', [BoardController::class, 'move'])->name('board.move');
+
+    // 1 行入力からのクイック追加
+    Route::post('tasks/quick', QuickAddController::class)->name('tasks.quick');
 
     Route::resource('tasks', TaskController::class);
     // 一覧から 1 クリックで完了状態を切り替えるための専用ルート

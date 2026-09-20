@@ -10,26 +10,33 @@
                 カードをドラッグしてステータスと並び順を変更できます。
             </p>
         </div>
+        {{-- 各レーンから追加できるので、ここは詳細入力への導線だけにする --}}
         <a href="{{ route('tasks.create') }}"
-           class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
-            <x-icon name="plus" class="size-4" /> 新規タスク
+           class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            詳しく入力して作成 →
         </a>
     </div>
 
-    <div data-board class="grid gap-3 md:grid-cols-3">
+    {{--
+        3 レーンの高さを揃え、はみ出した分はレーンの中だけでスクロールさせる。
+        画面の高さから、ヘッダーと見出しのぶんを引いた高さを割り当てている。
+    --}}
+    <div data-board class="grid gap-3 md:h-[calc(100vh-15rem)] md:min-h-96 md:grid-cols-3">
         @foreach ($lanes as $key => $lane)
-            <section class="card flex flex-col overflow-hidden">
-                <header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
+            <section class="card flex max-h-[70vh] min-h-0 flex-col overflow-hidden md:max-h-none">
+                <header class="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
                     <x-badge :classes="$lane['status']->badgeClasses()">{{ $lane['status']->label() }}</x-badge>
                     <span class="ml-auto text-xs font-medium text-slate-500 tabular-nums dark:text-slate-400"
                           data-lane-count="{{ $key }}">{{ $lane['tasks']->count() }}</span>
                 </header>
 
                 {{-- data-lane の値がドロップ先のステータスになる --}}
-                <ul data-lane="{{ $key }}" class="flex min-h-32 flex-1 flex-col gap-2 p-3">
+                <ul data-lane="{{ $key }}"
+                    class="flex min-h-32 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-3">
                     @foreach ($lane['tasks'] as $task)
-                        <li data-task-id="{{ $task->id }}" data-move-url="{{ route('board.move', $task) }}"
-                            class="cursor-grab rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800">
+                        <li id="task-{{ $task->id }}" data-task-id="{{ $task->id }}"
+                            data-move-url="{{ route('board.move', $task) }}"
+                            class="scroll-mt-2 cursor-grab rounded-xl border border-slate-200 bg-white p-3 target:border-brand-500 target:ring-2 target:ring-brand-500/30 active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800">
                             <a href="{{ route('tasks.show', $task) }}"
                                class="block text-sm font-medium hover:text-brand-700 dark:hover:text-brand-300">
                                 {{ $task->title }}
@@ -66,6 +73,39 @@
                         ここにドロップ
                     </li>
                 </ul>
+
+                {{--
+                    レーンごとの追加フォーム。details/summary を使うことで
+                    JavaScript 無しでも開閉できる。ここで追加したタスクは
+                    そのレーンのステータスで、末尾に入る。
+                --}}
+                <details class="shrink-0 border-t border-slate-100 dark:border-white/5"
+                         @if (old('status') === $key && $errors->has('quick')) open @endif>
+                    <summary title="タスクを追加"
+                             class="flex cursor-pointer list-none items-center justify-center py-2 text-slate-400 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white">
+                        <x-icon name="plus" class="size-4" />
+                        <span class="sr-only">{{ $lane['status']->label() }}にタスクを追加</span>
+                    </summary>
+
+                    <form action="{{ route('tasks.quick') }}" method="POST" class="px-3 pt-1 pb-3">
+                        @csrf
+                        <input type="hidden" name="status" value="{{ $key }}">
+                        <div class="relative">
+                            <input type="text" name="quick" maxlength="200" required
+                                   value="{{ old('status') === $key ? old('quick') : '' }}"
+                                   placeholder="明日 資料を作る #仕事 !高"
+                                   class="field py-2 pr-10 text-sm">
+                            <button type="submit" aria-label="追加" title="追加（Enter）"
+                                    class="absolute inset-y-1 right-1 grid w-8 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white">
+                                <x-icon name="enter" class="size-4" />
+                            </button>
+                        </div>
+
+                        @if (old('status') === $key)
+                            <x-input-error :messages="$errors->get('quick')" />
+                        @endif
+                    </form>
+                </details>
             </section>
         @endforeach
     </div>

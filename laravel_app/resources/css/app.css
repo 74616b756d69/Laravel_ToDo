@@ -36,6 +36,15 @@
     :focus-visible {
         @apply outline-2 outline-offset-2 outline-brand-500;
     }
+
+    /* details の開閉マーカーは自前のアイコンに置き換えるため消す */
+    summary::-webkit-details-marker {
+        display: none;
+    }
+
+    summary::marker {
+        content: '';
+    }
 }
 
 @layer components {
@@ -48,6 +57,14 @@
                shadow-sm transition placeholder:text-slate-400
                focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none
                dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500;
+    }
+
+    /*
+       アイコンの既定サイズ。components レイヤーに置くことで、
+       呼び出し側の size-4 などの utilities が確実に打ち勝つ。
+    */
+    .icon {
+        @apply size-5 shrink-0;
     }
 
     .field-label {

@@ -21,6 +21,10 @@ export function bootBoard() {
             animation: 150,
             ghostClass: 'opacity-40',
             dragClass: 'rotate-1',
+            // レーンは中だけスクロールするので、端まで運んだら自動で送る
+            scroll: true,
+            scrollSensitivity: 60,
+            scrollSpeed: 12,
             onEnd: async (event) => {
                 const card = event.item;
                 const target = event.to;
@@ -57,6 +61,15 @@ export function bootBoard() {
     });
 
     updateCounts(lanes);
+
+    // 追加フォームを開いたら、そのまま入力できるようにフォーカスを当てる
+    board.querySelectorAll('details').forEach((details) => {
+        details.addEventListener('toggle', () => {
+            if (details.open) {
+                details.querySelector('input[name="quick"]')?.focus();
+            }
+        });
+    });
 }
 
 function updateCounts(lanes) {
