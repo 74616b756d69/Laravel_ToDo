@@ -164,6 +164,39 @@ class Issue extends Model
         return $this->hasMany(Activity::class)->oldest();
     }
 
+    /** 自分が張った関連。 @return HasMany<IssueLink, $this> */
+    public function outgoingLinks(): HasMany
+    {
+        return $this->hasMany(IssueLink::class, 'source_issue_id');
+    }
+
+    /** 相手から張られた関連。 @return HasMany<IssueLink, $this> */
+    public function incomingLinks(): HasMany
+    {
+        return $this->hasMany(IssueLink::class, 'target_issue_id');
+    }
+
+    /**
+     * 向きを問わず、この課題につながっている関連すべて。
+     *
+     * 行は片方向にしか持たないので、表示のときに両側から集める。
+     *
+     * 相手の表示に要る関連まで自分で読む。呼び出し側の eager load に
+     * 頼ると、忘れたときに件数ぶんのクエリが飛ぶ（loadMissing なので
+     * すでに読んであれば追加のクエリは発生しない）。
+     *
+     * @return \Illuminate\Support\Collection<int, IssueLink>
+     */
+    public function links()
+    {
+        $this->loadMissing([
+            'outgoingLinks.target.status', 'outgoingLinks.target.assignee', 'outgoingLinks.target.project',
+            'incomingLinks.source.status', 'incomingLinks.source.assignee', 'incomingLinks.source.project',
+        ]);
+
+        return $this->outgoingLinks->toBase()->merge($this->incomingLinks);
+    }
+
     /** @return BelongsToMany<Tag, $this> */
     public function tags(): BelongsToMany
     {

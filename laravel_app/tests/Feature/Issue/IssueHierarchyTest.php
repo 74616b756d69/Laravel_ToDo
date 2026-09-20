@@ -12,6 +12,7 @@ use App\Models\Sprint;
 use App\Models\User;
 use App\Services\IssueHierarchyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -372,6 +373,71 @@ class IssueHierarchyTest extends TestCase
             ->assertSee($child->key())
             ->assertSee('引き込んだ課題')
             ->assertSee(IssueType::Bug->label());
+    }
+
+    /**
+     * 1 行に、種別・キー・要約・ステータス・担当者・見積りが並ぶ。
+     */
+    public function test_サブタスクの行に課題の情報が並ぶ(): void
+    {
+        $assignee = User::factory()->create(['name' => '担当者太郎']);
+        $child = $this->issue([
+            'title' => '引き込んだ課題',
+            'issue_type' => IssueType::Bug,
+            'story_points' => 8,
+        ]);
+        $child->forceFill(['assignee_id' => $assignee->id])->save();
+        $this->hierarchy->attach($this->parent, $child);
+
+        $this->actingAs($this->user)
+            ->get(route('tasks.show', $this->parent))
+            ->assertOk()
+            ->assertSee($child->key())
+            ->assertSee('引き込んだ課題')
+            // ステータス名
+            ->assertSee($child->status->name)
+            // 担当者は頭文字で出す
+            ->assertSee('担当: 担当者太郎')
+            ->assertSee('8')
+            // 種別アイコン
+            ->assertSee('title="バグ"', false);
+    }
+
+    public function test_ここで作ったサブタスクにもキーと行が出る(): void
+    {
+        $this->add('資料を集める');
+        $child = $this->parent->children()->sole();
+
+        $this->actingAs($this->user)
+            ->get(route('tasks.show', $this->parent))
+            ->assertOk()
+            ->assertSee($child->key())
+            ->assertSee('資料を集める')
+            ->assertSee('title="サブタスク"', false);
+    }
+
+    /**
+     * 行に出す情報が増えたので、子の件数でクエリが増えないことを固定する。
+     */
+    public function test_サブタスクを増やしてもクエリ数が増えない(): void
+    {
+        $measure = function (): int {
+            $count = 0;
+            DB::listen(function () use (&$count) {
+                $count++;
+            });
+            $this->actingAs($this->user)->get(route('tasks.show', $this->parent))->assertOk();
+
+            return $count;
+        };
+
+        collect(range(1, 2))->each(fn () => $this->hierarchy->attach($this->parent, $this->issue()));
+        $few = $measure();
+
+        collect(range(1, 15))->each(fn () => $this->hierarchy->attach($this->parent, $this->issue()));
+        $many = $measure();
+
+        $this->assertSame($few, $many, "サブタスクを増やすとクエリが {$few} → {$many} に増えています");
     }
 
     public function test_子の詳細画面から親へ行ける(): void

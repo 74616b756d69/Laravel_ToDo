@@ -7,6 +7,7 @@ use App\Http\Controllers\BacklogController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Issue\CommentController;
+use App\Http\Controllers\Issue\IssueLinkController;
 use App\Http\Controllers\Project\ProjectMemberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Sprint\SprintController;
@@ -72,6 +73,10 @@ Route::middleware('auth')->group(function () {
         ->name('comments.store');
     Route::put('tasks/{task}/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('tasks/{task}/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    // リンクされた作業項目。親子とは別で、関連づけても相手は一覧に残る
+    Route::post('tasks/{task}/links', [IssueLinkController::class, 'store'])->name('links.store');
+    Route::delete('tasks/{task}/links/{link}', [IssueLinkController::class, 'destroy'])->name('links.destroy');
 
     // サブタスク（タスクに従属するのでネストする）
     Route::post('tasks/{task}/subtasks', [SubtaskController::class, 'store'])->name('subtasks.store');

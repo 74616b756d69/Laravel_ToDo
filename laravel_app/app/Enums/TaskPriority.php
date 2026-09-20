@@ -29,6 +29,28 @@ enum TaskPriority: string
         };
     }
 
+    /**
+     * 優先度の記号。高は上向き、中は横棒、低は下向き。
+     * 色だけに頼らず、形でも高低が分かるようにする。
+     */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::High => 'priority-high',
+            self::Medium => 'priority-medium',
+            self::Low => 'priority-low',
+        };
+    }
+
+    public function iconClasses(): string
+    {
+        return match ($this) {
+            self::High => 'text-rose-500',
+            self::Medium => 'text-amber-500',
+            self::Low => 'text-slate-400',
+        };
+    }
+
     public function badgeClasses(): string
     {
         return match ($this) {

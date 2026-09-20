@@ -54,63 +54,9 @@
                                     :total="$task->children->count()" />
                 </div>
 
-                <ul class="mb-4 space-y-1">
+                <ul class="mb-4 divide-y divide-slate-100 dark:divide-white/5">
                     @foreach ($task->children as $subtask)
-                        <li class="group/sub flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-                            <form action="{{ route('subtasks.toggle', [$task, $subtask]) }}" method="POST" class="flex">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" aria-label="{{ $subtask->isCompleted() ? '未完了に戻す' : '完了にする' }}"
-                                        class="grid size-4.5 place-items-center rounded border transition
-                                               {{ $subtask->isCompleted()
-                                                    ? 'border-brand-500 bg-brand-500 text-white'
-                                                    : 'border-slate-300 text-transparent hover:border-brand-500 dark:border-slate-600' }}">
-                                    <x-icon name="check" class="size-3" stroke-width="3" />
-                                </button>
-                            </form>
-
-                            {{-- 引き込んだ既存課題は独立した課題なので、詳細へ行けるようにする --}}
-                            @if ($subtask->issue_type->isSubtask())
-                                <span class="flex-1 text-sm {{ $subtask->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
-                                    {{ $subtask->title }}
-                                </span>
-                            @else
-                                <span class="shrink-0 font-mono text-[11px] tracking-wider text-slate-400 dark:text-slate-500">
-                                    {{ $subtask->key() }}
-                                </span>
-                                <x-badge :classes="$subtask->issue_type->badgeClasses()">
-                                    {{ $subtask->issue_type->label() }}
-                                </x-badge>
-                                <a href="{{ route('tasks.show', $subtask) }}"
-                                   class="flex-1 truncate text-sm hover:text-brand-700 dark:hover:text-brand-300
-                                          {{ $subtask->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
-                                    {{ $subtask->title }}
-                                </a>
-                            @endif
-
-                            {{-- 外す: 親子を切るだけ。課題は一覧に戻る --}}
-                            <form action="{{ route('subtasks.detach', [$task, $subtask]) }}" method="POST">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" aria-label="サブタスクから外す" title="サブタスクから外す"
-                                        class="rounded p-1 text-slate-400 opacity-0 transition hover:text-slate-700 focus-visible:opacity-100 group-hover/sub:opacity-100 dark:hover:text-white">
-                                    <x-icon name="unlink" class="size-3.5" />
-                                </button>
-                            </form>
-
-                            {{-- 削除: ここで作ったサブタスクだけ。引き込んだ課題は消させない --}}
-                            @if ($subtask->issue_type->isSubtask())
-                                <form action="{{ route('subtasks.destroy', [$task, $subtask]) }}" method="POST"
-                                      data-confirm="サブタスク「{{ $subtask->title }}」を削除します。よろしいですか？">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" aria-label="サブタスクを削除" title="削除"
-                                            class="rounded p-1 text-slate-400 opacity-0 transition hover:text-rose-600 focus-visible:opacity-100 group-hover/sub:opacity-100">
-                                        <x-icon name="trash" class="size-3.5" />
-                                    </button>
-                                </form>
-                            @endif
-                        </li>
+                        <x-subtask-row :parent="$task" :subtask="$subtask" />
                     @endforeach
                 </ul>
             @endif
@@ -145,6 +91,8 @@
                 </p>
             @endif
         </section>
+
+        @include('tasks.links')
 
         <dl class="grid gap-px overflow-hidden border-t border-slate-100 bg-slate-100 sm:grid-cols-2 dark:border-white/5 dark:bg-white/5">
             @foreach ([

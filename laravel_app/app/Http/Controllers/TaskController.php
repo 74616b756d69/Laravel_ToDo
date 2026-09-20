@@ -8,6 +8,7 @@ use App\Http\Requests\Task\TaskRequest;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Status;
+use App\Services\IssueLinkService;
 use App\Services\WorkflowService;
 use App\Support\IssueTimeline;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +19,10 @@ use Illuminate\View\View;
 
 class TaskController extends Controller
 {
-    public function __construct(private readonly WorkflowService $workflows) {}
+    public function __construct(
+        private readonly WorkflowService $workflows,
+        private readonly IssueLinkService $links,
+    ) {}
 
     /**
      * 並び替えの選択肢。キーはクエリ文字列、値は画面表示のラベル。
@@ -108,7 +112,9 @@ class TaskController extends Controller
         $this->authorize('view', $task);
 
         $task->load(
-            'tags', 'children.status', 'project', 'assignee', 'reporter', 'status', 'sprint',
+            'tags', 'project', 'assignee', 'reporter', 'status', 'sprint', 'parent',
+            // 子は 1 行にステータス・担当者・キーまで出すので、そこまで読む
+            'children.status', 'children.assignee', 'children.project',
             'comments.user', 'activities.user',
         );
 
@@ -118,6 +124,7 @@ class TaskController extends Controller
             'task' => $task,
             'tab' => $tab,
             'timeline' => IssueTimeline::build($task, $tab),
+            'linkedIssues' => $this->links->groupedFor($task),
         ]);
     }
 

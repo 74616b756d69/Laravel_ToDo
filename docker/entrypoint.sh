@@ -57,6 +57,32 @@ until php artisan db:monitor > /dev/null 2>&1; do
     sleep 2
 done
 
+# ---------------------------------------------------------------------------
+# マイグレーションを流す
+#
+# 課題（Issue）化とワークフロー化は、スキーマの変更だけでは完結しない。
+# 途中に移行コマンドを 2 回挟む必要があり、順序はこうなる:
+#
+#   M1 → issues:migrate-from-tasks → M3・M4・M5 → workflows:install → M6・M7 …
+#
+# 中身が埋まらないまま NOT NULL を張ろうとすると、M3 と M6 がわざと例外で
+# 止まる（半端な状態で制約を張ると、そこで初めてデータが壊れるため）。
+#
+# まっさらなデータベースでは最初の migrate が最後まで通り、
+# 移行コマンドは「対象なし」で何もしない。どちらのコマンドも冪等なので、
+# 再起動のたびに実行しても結果は変わらない。
+# ---------------------------------------------------------------------------
+
+# ガードで止まるのは想定どおりなので、ここでは失敗を通す。
+# 本当に直らない問題なら、最後の migrate が改めて落ちる。
+migrate_until_guard() {
+    php artisan migrate --force || true
+}
+
+migrate_until_guard
+php artisan issues:migrate-from-tasks
+migrate_until_guard
+php artisan workflows:install
 php artisan migrate --force
 
 # SEED_DATABASE=true かつ、まだユーザーが 1 人もいないときだけデモデータを投入する

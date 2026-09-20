@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\IssueLinkType;
 use App\Enums\IssueType;
 use App\Enums\StatusCategory;
 use App\Enums\TagColor;
@@ -13,6 +14,7 @@ use App\Models\Sprint;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\IssueLinkService;
 use App\Services\SprintService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -68,6 +70,7 @@ class DemoUserSeeder extends Seeder
         $this->createChildIssues($project, $tasks);
         $this->createSprints($project, $open);
         $this->createComments($tasks);
+        $this->createLinks($project);
 
         $this->command?->info(sprintf(
             'デモアカウント（%s / %s）にタスク %d 件を作成しました。',
@@ -180,6 +183,36 @@ class DemoUserSeeder extends Seeder
                 ->for($issue)
                 ->for($author)
                 ->create());
+    }
+
+    /**
+     * いくつかの課題を関連づけて、「リンクされた作業項目」が空でない状態にする。
+     */
+    private function createLinks(Project $project): void
+    {
+        $links = app(IssueLinkService::class);
+
+        $candidates = $project->issues()->whereNull('parent_id')->inRandomOrder()->limit(12)->get();
+
+        // chunk() はキーを保ったままなので、values() で振り直さないと
+        // 2 組目以降の get(0) が null になる
+        $candidates->chunk(3)->each(function (Collection $group) use ($links) {
+            $group = $group->values();
+
+            [$source, $related, $blocked] = [$group->get(0), $group->get(1), $group->get(2)];
+
+            if ($source === null) {
+                return;
+            }
+
+            if ($related !== null) {
+                $links->link($source, $related, IssueLinkType::Relates);
+            }
+
+            if ($blocked !== null) {
+                $links->link($source, $blocked, IssueLinkType::Blocks);
+            }
+        });
     }
 
     /**

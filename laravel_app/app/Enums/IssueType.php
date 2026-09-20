@@ -24,6 +24,34 @@ enum IssueType: string
         };
     }
 
+    /**
+     * 種別を示すアイコン名。色だけでなく形でも見分けられるようにする。
+     */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Epic => 'epic',
+            self::Story => 'story',
+            self::Task => 'task',
+            self::Bug => 'bug',
+            self::Subtask => 'subtask',
+        };
+    }
+
+    /**
+     * アイコン単体に載せる文字色。バッジの背景を使わない場所で用いる。
+     */
+    public function iconClasses(): string
+    {
+        return match ($this) {
+            self::Epic => 'text-violet-600 dark:text-violet-400',
+            self::Story => 'text-emerald-600 dark:text-emerald-400',
+            self::Task => 'text-sky-600 dark:text-sky-400',
+            self::Bug => 'text-rose-600 dark:text-rose-400',
+            self::Subtask => 'text-slate-400 dark:text-slate-500',
+        };
+    }
+
     public function badgeClasses(): string
     {
         return match ($this) {
