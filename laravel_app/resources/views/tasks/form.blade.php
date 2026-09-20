@@ -1,5 +1,5 @@
 {{-- 作成・編集で共有するフォーム本体。$action / $method / $task を受け取る --}}
-<form action="{{ $action }}" method="POST" class="card animate-rise space-y-5 p-5 sm:p-6">
+<form action="{{ $action }}" method="POST" class="card space-y-5 p-5 sm:p-6">
     @csrf
     @if ($method !== 'POST')
         @method($method)

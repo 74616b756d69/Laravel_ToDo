@@ -18,14 +18,14 @@
 <body class="grid min-h-screen place-items-center px-4 py-10">
     <div class="w-full max-w-md">
         <div class="mb-8 flex flex-col items-center gap-3 text-center">
-            <a href="{{ route('welcome') }}" class="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-600/20">
+            <a href="{{ route('welcome') }}" class="grid size-11 place-items-center rounded-lg bg-brand-600 text-white">
                 <x-icon name="check" class="size-6" />
             </a>
             <h1 class="text-xl font-bold tracking-tight">@yield('heading')</h1>
             <p class="text-sm text-slate-500 dark:text-slate-400">@yield('lead')</p>
         </div>
 
-        <div class="card animate-rise p-6 sm:p-7">
+        <div class="card p-6 sm:p-7">
             <x-flash />
             @yield('content')
         </div>

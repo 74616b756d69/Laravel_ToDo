@@ -21,19 +21,6 @@
     --color-brand-700: oklch(0.47 0.18 265);
     --color-brand-800: oklch(0.39 0.14 265);
     --color-brand-900: oklch(0.31 0.1 265);
-
-    --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes rise {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
 }
 
 @layer base {
@@ -46,21 +33,6 @@
         @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
     }
 
-    /* 背景のほのかなグラデーション。ページ全体の空気を作る */
-    body::before {
-        content: '';
-        @apply pointer-events-none fixed inset-0 -z-10 opacity-70 dark:opacity-100;
-        background:
-            radial-gradient(60rem 30rem at 15% -10%, var(--color-brand-100), transparent 60%),
-            radial-gradient(45rem 25rem at 110% 10%, oklch(0.93 0.05 200), transparent 55%);
-    }
-
-    .dark body::before {
-        background:
-            radial-gradient(60rem 30rem at 15% -10%, oklch(0.35 0.12 265 / 0.45), transparent 60%),
-            radial-gradient(45rem 25rem at 110% 10%, oklch(0.35 0.1 200 / 0.35), transparent 55%);
-    }
-
     :focus-visible {
         @apply outline-2 outline-offset-2 outline-brand-500;
     }
@@ -68,8 +40,7 @@
 
 @layer components {
     .card {
-        @apply rounded-2xl border border-white/60 bg-white/80 shadow-sm shadow-slate-900/5 backdrop-blur
-               dark:border-white/10 dark:bg-slate-900/70 dark:shadow-none;
+        @apply rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
     }
 
     .field {
@@ -193,11 +164,11 @@
 
 /* ---------------------------------------------------------------------------
    グラフの配色
-   ライト／ダークそれぞれの背景色に対して検証したステップを使う。
-   （単色系列＝1色 / 優先度＝順序尺度なので同一色相の明→暗ランプ）
+   単色系列は 1 色、優先度は順序尺度なので同一色相の明→暗ランプを使う。
+   いずれもページ背景（ライト #f8fafc / ダーク #020617）に対して
+   明度・彩度・コントラストを検証した値。
 --------------------------------------------------------------------------- */
 .viz {
-    --viz-surface: #ffffff;
     --viz-grid: #e2e8f0;
     --viz-series: #4f46e5;
     --viz-ramp-low: #818cf8;
@@ -206,7 +177,6 @@
 }
 
 .dark .viz {
-    --viz-surface: #0f172b;
     --viz-grid: #1d293d;
     --viz-series: #6366f1;
     --viz-ramp-low: #c7d2fe;

@@ -21,13 +21,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen">
-    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:m-3 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow">
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:m-3 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:ring-2 focus:ring-brand-500">
         本文へスキップ
     </a>
 
     @include('partials.header')
 
-    <main id="main" class="mx-auto w-full max-w-5xl px-4 pt-8 pb-16 sm:px-6">
+    <main id="main" class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         <x-flash />
         @yield('content')
     </main>

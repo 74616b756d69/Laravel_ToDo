@@ -5,7 +5,7 @@
 @section('content')
     <x-page-heading title="タスク詳細" :back="route('tasks.index')" back-label="一覧に戻る" />
 
-    <article class="card animate-rise overflow-hidden">
+    <article class="card overflow-hidden">
         <div class="border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-white/5">
             <div class="flex flex-wrap items-center gap-1.5">
                 <x-badge :classes="$task->status->badgeClasses()">{{ $task->status->label() }}</x-badge>

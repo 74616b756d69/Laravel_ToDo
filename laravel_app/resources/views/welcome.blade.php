@@ -3,13 +3,13 @@
 @section('title', 'ホーム')
 
 @section('content')
-    <section class="animate-rise py-10 text-center sm:py-16">
+    <section class="py-10 text-center sm:py-16">
         <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 ring-1 ring-brand-200 ring-inset dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-500/30">
             <x-icon name="sparkles" class="size-3.5" /> Laravel 製タスク管理アプリ
         </span>
 
         <h1 class="mt-5 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-            やることを、<span class="bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent">迷わず片づける。</span>
+            やることを、<span class="decoration-brand-500 underline decoration-4 underline-offset-8">迷わず片づける</span>。
         </h1>
 
         <p class="mx-auto mt-4 max-w-xl text-pretty text-slate-600 dark:text-slate-300">

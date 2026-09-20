@@ -1,6 +1,6 @@
 @props(['title', 'back' => null, 'backLabel' => '戻る'])
 
-<div class="animate-rise mb-6">
+<div class="mb-6">
     @if ($back)
         <a href="{{ $back }}"
            class="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300">
