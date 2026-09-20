@@ -8,6 +8,25 @@
             <span class="text-lg">{{ config('app.name') }}</span>
         </a>
 
+        @auth
+            {{-- 主要画面へのナビゲーション --}}
+            <nav class="ml-2 hidden items-center gap-1 md:flex">
+                @foreach ([
+                    ['tasks.index', 'タスク', request()->routeIs('tasks.*')],
+                    ['board', 'ボード', request()->routeIs('board')],
+                    ['dashboard', '分析', request()->routeIs('dashboard')],
+                    ['tags.index', 'タグ', request()->routeIs('tags.*')],
+                ] as [$route, $label, $active])
+                    <a href="{{ route($route) }}"
+                       @class([
+                           'rounded-lg px-3 py-1.5 text-sm font-medium transition',
+                           'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' => $active,
+                           'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white' => ! $active,
+                       ])>{{ $label }}</a>
+                @endforeach
+            </nav>
+        @endauth
+
         <div class="ml-auto flex items-center gap-2">
             <x-theme-toggle />
 
@@ -35,4 +54,23 @@
             @endauth
         </div>
     </div>
+
+    @auth
+        {{-- 狭い画面では 2 段目にナビゲーションを出す --}}
+        <nav class="flex items-center gap-1 overflow-x-auto border-t border-slate-200/70 px-4 py-2 md:hidden dark:border-white/5">
+            @foreach ([
+                ['tasks.index', 'タスク', request()->routeIs('tasks.*')],
+                ['board', 'ボード', request()->routeIs('board')],
+                ['dashboard', '分析', request()->routeIs('dashboard')],
+                ['tags.index', 'タグ', request()->routeIs('tags.*')],
+            ] as [$route, $label, $active])
+                <a href="{{ route($route) }}"
+                   @class([
+                       'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition',
+                       'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' => $active,
+                       'text-slate-500 dark:text-slate-400' => ! $active,
+                   ])>{{ $label }}</a>
+            @endforeach
+        </nav>
+    @endauth
 </header>

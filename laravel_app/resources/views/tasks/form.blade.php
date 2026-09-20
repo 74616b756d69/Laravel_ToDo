@@ -15,12 +15,12 @@
     </div>
 
     <div>
-        <label for="content" class="field-label">内容</label>
-        <textarea id="content" name="content" rows="5" maxlength="2000"
-                  placeholder="詳細やメモを入力（任意）"
-                  class="field resize-y @error('content') border-rose-400 @enderror">{{ old('content', $task->content) }}</textarea>
+        <span class="field-label">内容</span>
+        <x-rich-editor :value="old('content', $task->content)" />
         <x-input-error :messages="$errors->get('content')" />
     </div>
+
+    <x-tag-picker :tags="$tags" :selected="old('tags', $task->tags->pluck('id')->all())" />
 
     <div class="grid gap-5 sm:grid-cols-3">
         <div>

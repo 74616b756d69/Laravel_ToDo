@@ -23,7 +23,14 @@
         </a>
 
         @if ($task->content)
-            <p class="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{{ $task->content }}</p>
+            {{-- 本文は HTML なので、一覧では平文の抜粋だけを出す --}}
+            <p class="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{{ $task->excerpt() }}</p>
+        @endif
+
+        @if (($task->subtasks_count ?? 0) > 0)
+            <div class="mt-2 max-w-48">
+                <x-progress-bar :done="$task->done_subtasks_count" :total="$task->subtasks_count" compact />
+            </div>
         @endif
 
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -31,6 +38,10 @@
             <x-badge :classes="$task->priority->badgeClasses()" :dot="$task->priority->dotClasses()">
                 優先度{{ $task->priority->label() }}
             </x-badge>
+
+            @foreach ($task->tags as $tag)
+                <x-badge :classes="$tag->color->badgeClasses()" :dot="$tag->color->swatchClasses()">{{ $tag->name }}</x-badge>
+            @endforeach
 
             @if ($task->due_date)
                 <x-badge :classes="$task->isOverdue()

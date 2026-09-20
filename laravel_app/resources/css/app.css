@@ -83,3 +83,146 @@
         @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   リッチテキスト（Tiptap のエディタと、保存済み HTML の表示）
+   エディタと閲覧画面で同じ見た目になるよう、共通のセレクタにまとめている。
+--------------------------------------------------------------------------- */
+@layer components {
+    .editor-button {
+        @apply grid h-7 min-w-7 place-items-center rounded-md px-1.5 text-xs text-slate-600 transition
+               hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-700;
+    }
+
+    .editor-button.is-active {
+        @apply bg-brand-600 text-white hover:bg-brand-700;
+    }
+
+    .prose-editor,
+    .prose-content {
+        @apply text-sm leading-relaxed text-slate-700 dark:text-slate-200;
+    }
+
+    .prose-editor > * + *,
+    .prose-content > * + * {
+        @apply mt-3;
+    }
+
+    .prose-editor h2,
+    .prose-content h2 {
+        @apply mt-5 text-base font-bold text-slate-900 dark:text-white;
+    }
+
+    .prose-editor h3,
+    .prose-content h3 {
+        @apply mt-4 text-sm font-bold text-slate-900 dark:text-white;
+    }
+
+    .prose-editor ul,
+    .prose-content ul {
+        @apply list-disc space-y-1 pl-5;
+    }
+
+    .prose-editor ol,
+    .prose-content ol {
+        @apply list-decimal space-y-1 pl-5;
+    }
+
+    .prose-editor a,
+    .prose-content a {
+        @apply font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800 dark:text-brand-300;
+    }
+
+    .prose-editor blockquote,
+    .prose-content blockquote {
+        @apply border-l-2 border-brand-300 pl-3 text-slate-600 italic dark:border-brand-500/50 dark:text-slate-300;
+    }
+
+    .prose-editor code,
+    .prose-content code {
+        @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.85em] text-rose-600 dark:bg-slate-800 dark:text-rose-300;
+    }
+
+    .prose-editor pre,
+    .prose-content pre {
+        @apply overflow-x-auto rounded-xl bg-slate-900 p-3.5 text-xs text-slate-100 dark:bg-black/40;
+    }
+
+    .prose-editor pre code,
+    .prose-content pre code {
+        @apply bg-transparent p-0 text-inherit;
+    }
+
+    .prose-editor hr,
+    .prose-content hr {
+        @apply my-5 border-slate-200 dark:border-slate-700;
+    }
+
+    /* チェックリスト（Tiptap の TaskList） */
+    .prose-editor ul[data-type='taskList'],
+    .prose-content ul[data-type='taskList'] {
+        @apply list-none space-y-1.5 pl-0;
+    }
+
+    .prose-editor ul[data-type='taskList'] li,
+    .prose-content ul[data-type='taskList'] li {
+        @apply flex items-start gap-2;
+    }
+
+    .prose-editor ul[data-type='taskList'] li > label,
+    .prose-content ul[data-type='taskList'] li > label {
+        @apply mt-0.5 shrink-0;
+    }
+
+    .prose-editor ul[data-type='taskList'] input[type='checkbox'],
+    .prose-content ul[data-type='taskList'] input[type='checkbox'] {
+        @apply size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800;
+    }
+
+    .prose-editor ul[data-type='taskList'] li[data-checked='true'] > div,
+    .prose-content ul[data-type='taskList'] li[data-checked='true'] > div {
+        @apply text-slate-400 line-through dark:text-slate-500;
+    }
+
+    /* 空のときに表示するプレースホルダ */
+    .prose-editor p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        @apply pointer-events-none float-left h-0 text-slate-400 dark:text-slate-500;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   グラフの配色
+   ライト／ダークそれぞれの背景色に対して検証したステップを使う。
+   （単色系列＝1色 / 優先度＝順序尺度なので同一色相の明→暗ランプ）
+--------------------------------------------------------------------------- */
+.viz {
+    --viz-surface: #ffffff;
+    --viz-grid: #e2e8f0;
+    --viz-series: #4f46e5;
+    --viz-ramp-low: #818cf8;
+    --viz-ramp-mid: #4f46e5;
+    --viz-ramp-high: #312e81;
+}
+
+.dark .viz {
+    --viz-surface: #0f172b;
+    --viz-grid: #1d293d;
+    --viz-series: #6366f1;
+    --viz-ramp-low: #c7d2fe;
+    --viz-ramp-mid: #818cf8;
+    --viz-ramp-high: #4f46e5;
+}
+
+/* ホバー中の棒だけを残して、他をわずかに引かせる */
+.viz-bars:hover .viz-bar {
+    opacity: 0.45;
+}
+
+.viz-bars .viz-bar {
+    transition: opacity 0.15s ease;
+}
+
+.viz-bars .viz-bar:hover {
+    opacity: 1;
+}

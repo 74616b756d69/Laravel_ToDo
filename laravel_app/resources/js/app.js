@@ -35,3 +35,15 @@ document.querySelectorAll('form[data-auto-submit]').forEach((form) => {
         }
     });
 });
+
+/**
+ * エディタとカンバンは重いライブラリを使うため、
+ * その要素があるページでだけ動的に読み込む（初期表示を軽く保つ）。
+ */
+if (document.querySelector('[data-editor]')) {
+    import('./features/editor').then(({ bootEditors }) => bootEditors());
+}
+
+if (document.querySelector('[data-board]')) {
+    import('./features/board').then(({ bootBoard }) => bootBoard());
+}

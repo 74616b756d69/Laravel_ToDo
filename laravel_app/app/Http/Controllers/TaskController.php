@@ -28,9 +28,16 @@ class TaskController extends Controller
         $filters = $this->filters($request);
 
         $tasks = $this->query()
+            ->with('tags')
+            // 進捗バー用にサブタスクの件数だけを取得する（N+1 を避ける）
+            ->withCount([
+                'subtasks',
+                'subtasks as done_subtasks_count' => fn ($query) => $query->where('is_done', true),
+            ])
             ->search($filters['keyword'])
             ->status($filters['status'])
             ->priority($filters['priority'])
+            ->tagged($filters['tag'])
             ->when($filters['overdue'], fn ($query) => $query->overdue())
             ->sorted($filters['sort'])
             ->paginate(10)
@@ -41,17 +48,22 @@ class TaskController extends Controller
             'filters' => $filters,
             'summary' => $this->summary(),
             'sorts' => self::SORTS,
+            'tags' => Auth::user()->tags,
         ]);
     }
 
     public function create(): View
     {
-        return view('tasks.create', ['task' => new Task(['status' => TaskStatus::Todo, 'priority' => TaskPriority::Medium])]);
+        return view('tasks.create', [
+            'task' => new Task(['status' => TaskStatus::Todo, 'priority' => TaskPriority::Medium]),
+            'tags' => Auth::user()->tags,
+        ]);
     }
 
     public function store(TaskRequest $request): RedirectResponse
     {
         $task = Auth::user()->tasks()->create($request->taskAttributes());
+        $task->tags()->sync($request->tagIds());
 
         return redirect()->route('tasks.show', $task)
             ->with('status', "「{$task->title}」を追加しました。");
@@ -61,6 +73,8 @@ class TaskController extends Controller
     {
         $this->authorize('view', $task);
 
+        $task->load('tags', 'subtasks');
+
         return view('tasks.show', compact('task'));
     }
 
@@ -68,7 +82,10 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
-        return view('tasks.edit', compact('task'));
+        return view('tasks.edit', [
+            'task' => $task->load('tags'),
+            'tags' => Auth::user()->tags,
+        ]);
     }
 
     public function update(TaskRequest $request, Task $task): RedirectResponse
@@ -76,6 +93,7 @@ class TaskController extends Controller
         $this->authorize('update', $task);
 
         $task->update($request->taskAttributes());
+        $task->tags()->sync($request->tagIds());
 
         return redirect()->route('tasks.show', $task)
             ->with('status', "「{$task->title}」を更新しました。");
@@ -129,7 +147,7 @@ class TaskController extends Controller
     /**
      * クエリ文字列を検証済みの絞り込み条件に変換する。
      *
-     * @return array{keyword: ?string, status: ?TaskStatus, priority: ?TaskPriority, overdue: bool, sort: string}
+     * @return array{keyword: ?string, status: ?TaskStatus, priority: ?TaskPriority, tag: ?int, overdue: bool, sort: string}
      */
     private function filters(Request $request): array
     {
@@ -139,6 +157,7 @@ class TaskController extends Controller
             'keyword' => $request->string('keyword')->trim()->value() ?: null,
             'status' => TaskStatus::tryFrom((string) $request->query('status')),
             'priority' => TaskPriority::tryFrom((string) $request->query('priority')),
+            'tag' => $request->integer('tag') ?: null,
             'overdue' => $request->boolean('overdue'),
             'sort' => array_key_exists($sort, self::SORTS) ? $sort : 'latest',
         ];

@@ -17,6 +17,10 @@
                         <x-icon name="alert" class="size-3.5" /> 期限切れ
                     </x-badge>
                 @endif
+
+                @foreach ($task->tags as $tag)
+                    <x-badge :classes="$tag->color->badgeClasses()" :dot="$tag->color->swatchClasses()">{{ $tag->name }}</x-badge>
+                @endforeach
             </div>
             <h2 class="mt-3 text-xl font-bold break-words {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
                 {{ $task->title }}
@@ -25,11 +29,73 @@
 
         <div class="px-5 py-5 sm:px-6">
             @if ($task->content)
-                <p class="leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300">{{ $task->content }}</p>
+                {{-- 保存時に許可タグだけへサニタイズ済みなので、そのまま描画する --}}
+                <div class="prose-content">{!! \App\Support\RichText::forDisplay($task->content) !!}</div>
             @else
                 <p class="text-sm text-slate-400 dark:text-slate-500">内容は登録されていません。</p>
             @endif
         </div>
+
+        {{-- サブタスク --}}
+        <section class="border-t border-slate-100 px-5 py-5 sm:px-6 dark:border-white/5">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h3 class="text-sm font-semibold">サブタスク</h3>
+                @if ($task->subtasks->isNotEmpty())
+                    <span class="text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                        {{ $task->subtasks->where('is_done', true)->count() }}/{{ $task->subtasks->count() }} 完了
+                    </span>
+                @endif
+            </div>
+
+            @if ($task->subtasks->isNotEmpty())
+                <div class="mb-4">
+                    <x-progress-bar :done="$task->subtasks->where('is_done', true)->count()"
+                                    :total="$task->subtasks->count()" />
+                </div>
+
+                <ul class="mb-4 space-y-1">
+                    @foreach ($task->subtasks as $subtask)
+                        <li class="group/sub flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.03]">
+                            <form action="{{ route('subtasks.toggle', [$task, $subtask]) }}" method="POST" class="flex">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" aria-label="{{ $subtask->is_done ? '未完了に戻す' : '完了にする' }}"
+                                        class="grid size-4.5 place-items-center rounded border transition
+                                               {{ $subtask->is_done
+                                                    ? 'border-brand-500 bg-brand-500 text-white'
+                                                    : 'border-slate-300 text-transparent hover:border-brand-500 dark:border-slate-600' }}">
+                                    <x-icon name="check" class="size-3" stroke-width="3" />
+                                </button>
+                            </form>
+
+                            <span class="flex-1 text-sm {{ $subtask->is_done ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
+                                {{ $subtask->title }}
+                            </span>
+
+                            <form action="{{ route('subtasks.destroy', [$task, $subtask]) }}" method="POST">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" aria-label="サブタスクを削除"
+                                        class="rounded p-1 text-slate-400 opacity-0 transition hover:text-rose-600 focus-visible:opacity-100 group-hover/sub:opacity-100">
+                                    <x-icon name="trash" class="size-3.5" />
+                                </button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+
+            <form action="{{ route('subtasks.store', $task) }}" method="POST" class="flex gap-2">
+                @csrf
+                <input type="text" name="title" maxlength="120" required
+                       placeholder="サブタスクを追加" class="field flex-1 py-2 text-sm">
+                <button type="submit"
+                        class="shrink-0 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
+                    追加
+                </button>
+            </form>
+            <x-input-error :messages="$errors->get('title')" />
+        </section>
 
         <dl class="grid gap-px overflow-hidden border-t border-slate-100 bg-slate-100 sm:grid-cols-2 dark:border-white/5 dark:bg-white/5">
             @foreach ([

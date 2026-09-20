@@ -5,6 +5,7 @@ namespace App\Http\Requests\Task;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 /**
@@ -21,6 +22,12 @@ class TaskRequest extends FormRequest
             'status' => ['required', Rule::enum(TaskStatus::class)],
             'priority' => ['required', Rule::enum(TaskPriority::class)],
             'due_date' => ['nullable', 'date'],
+            'tags' => ['array'],
+            // 自分が作ったタグ以外は指定できない
+            'tags.*' => [
+                'integer',
+                Rule::exists('tags', 'id')->where('user_id', Auth::id()),
+            ],
         ];
     }
 
@@ -33,6 +40,7 @@ class TaskRequest extends FormRequest
             'status' => 'ステータス',
             'priority' => '優先度',
             'due_date' => '期限',
+            'tags' => 'タグ',
         ];
     }
 
@@ -44,6 +52,8 @@ class TaskRequest extends FormRequest
     public function taskAttributes(): array
     {
         $validated = $this->validated();
+        unset($validated['tags']);
+
         $isDone = $validated['status'] === TaskStatus::Done->value;
 
         $validated['completed_at'] = $isDone
@@ -51,5 +61,15 @@ class TaskRequest extends FormRequest
             : null;
 
         return $validated;
+    }
+
+    /**
+     * 付け替えるタグの ID 一覧。
+     *
+     * @return array<int, int>
+     */
+    public function tagIds(): array
+    {
+        return array_map('intval', $this->validated()['tags'] ?? []);
     }
 }

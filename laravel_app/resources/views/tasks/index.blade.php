@@ -59,6 +59,29 @@
                 </label>
             </div>
 
+            @if ($tags->isNotEmpty())
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-white/5">
+                    <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">タグ:</span>
+                    {{-- ラジオなので、同じタグを再度押す代わりに「すべて」で解除する --}}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="tag" value="" class="peer sr-only" @checked(! $filters['tag'])>
+                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 ring-inset transition peer-checked:bg-slate-900 peer-checked:text-white dark:text-slate-400 dark:ring-slate-700 dark:peer-checked:bg-white dark:peer-checked:text-slate-900">
+                            すべて
+                        </span>
+                    </label>
+                    @foreach ($tags as $tag)
+                        <label class="cursor-pointer">
+                            <input type="radio" name="tag" value="{{ $tag->id }}" class="peer sr-only"
+                                   @checked($filters['tag'] === $tag->id)>
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition
+                                         opacity-60 grayscale peer-checked:opacity-100 peer-checked:grayscale-0 {{ $tag->color->badgeClasses() }}">
+                                <span class="size-1.5 rounded-full {{ $tag->color->swatchClasses() }}"></span>{{ $tag->name }}
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+            @endif
+
             <div class="mt-3 flex flex-wrap items-center gap-3">
                 @foreach (\App\Enums\TaskPriority::options() as $value => $label)
                     <label class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
@@ -76,7 +99,7 @@
                 </label>
 
                 <div class="ml-auto flex gap-2">
-                    @if ($filters['keyword'] || $filters['status'] || $filters['priority'] || $filters['overdue'])
+                    @if ($filters['keyword'] || $filters['status'] || $filters['priority'] || $filters['tag'] || $filters['overdue'])
                         <a href="{{ route('tasks.index') }}"
                            class="rounded-xl px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/5">条件をクリア</a>
                     @endif

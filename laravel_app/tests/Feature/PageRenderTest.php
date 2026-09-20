@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Subtask;
+use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,10 +28,29 @@ class PageRenderTest extends TestCase
 
         $this->actingAs($user);
 
-        $this->get(route('tasks.index'))->assertOk();
+        $tag = Tag::factory()->for($user)->create(['name' => 'サンプルタグ']);
+        $task->tags()->attach($tag);
+        Subtask::factory()->for($task)->create(['title' => 'サンプルサブタスク']);
+
+        $this->get(route('tasks.index'))->assertOk()->assertSee('サンプルタグ');
         $this->get(route('tasks.create'))->assertOk()->assertSee('タスクを作成');
-        $this->get(route('tasks.show', $task))->assertOk()->assertSee('サンプルタスク');
+        $this->get(route('tasks.show', $task))->assertOk()
+            ->assertSee('サンプルタスク')
+            ->assertSee('サンプルサブタスク');
         $this->get(route('tasks.edit', $task))->assertOk()->assertSee('タスクを編集');
+        $this->get(route('board'))->assertOk()->assertSee('ボード');
+        $this->get(route('dashboard'))->assertOk()->assertSee('分析');
+        $this->get(route('tags.index'))->assertOk()->assertSee('サンプルタグ');
+    }
+
+    public function test_データが一件も無くても各画面が表示される(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('tasks.index'))->assertOk();
+        $this->get(route('board'))->assertOk();
+        $this->get(route('dashboard'))->assertOk();
+        $this->get(route('tags.index'))->assertOk();
     }
 
     public function test_存在しないタスクは404になる(): void

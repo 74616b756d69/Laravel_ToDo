@@ -4,10 +4,14 @@ namespace App\Models;
 
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Support\RichText;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
@@ -22,6 +26,7 @@ class Task extends Model
         'priority',
         'due_date',
         'completed_at',
+        'position',
     ];
 
     protected function casts(): array
@@ -38,6 +43,53 @@ class Task extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return HasMany<Subtask, $this> */
+    public function subtasks(): HasMany
+    {
+        return $this->hasMany(Subtask::class)->orderBy('position')->orderBy('id');
+    }
+
+    /** @return BelongsToMany<Tag, $this> */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->orderBy('name');
+    }
+
+    /**
+     * content は HTML として保存する。保存の直前に必ず無害化し、
+     * 検索用の平文（content_text）も同時に更新する。
+     */
+    protected function content(): Attribute
+    {
+        return Attribute::set(function (?string $value) {
+            $html = RichText::sanitize($value);
+
+            return [
+                'content' => $html,
+                'content_text' => $html === null ? null : RichText::toPlainText($html),
+            ];
+        });
+    }
+
+    public function excerpt(int $limit = 120): string
+    {
+        return RichText::excerpt($this->content, $limit);
+    }
+
+    /**
+     * サブタスクの進捗率（0-100）。サブタスクが無ければ null。
+     */
+    public function progress(): ?int
+    {
+        $total = $this->subtasks->count();
+
+        if ($total === 0) {
+            return null;
+        }
+
+        return (int) round($this->subtasks->where('is_done', true)->count() / $total * 100);
     }
 
     public function isCompleted(): bool
@@ -93,9 +145,10 @@ class Task extends Model
         // LIKE のワイルドカードを打ち消してから部分一致に使う
         $escaped = addcslashes($keyword, '%_\\');
 
+        // content は HTML なのでタグに引っかからないよう平文カラムを検索する
         $query->where(function (Builder $query) use ($escaped) {
             $query->where('title', 'like', "%{$escaped}%")
-                ->orWhere('content', 'like', "%{$escaped}%");
+                ->orWhere('content_text', 'like', "%{$escaped}%");
         });
     }
 
@@ -109,6 +162,19 @@ class Task extends Model
     public function scopePriority(Builder $query, ?TaskPriority $priority): void
     {
         $query->when($priority, fn (Builder $query) => $query->where('priority', $priority));
+    }
+
+    /**
+     * 指定タグが付いたタスクだけに絞る。
+     *
+     * @param  Builder<Task>  $query
+     */
+    public function scopeTagged(Builder $query, ?int $tagId): void
+    {
+        $query->when($tagId, fn (Builder $query) => $query->whereHas(
+            'tags',
+            fn (Builder $query) => $query->where('tags.id', $tagId),
+        ));
     }
 
     /** @param  Builder<Task>  $query */
