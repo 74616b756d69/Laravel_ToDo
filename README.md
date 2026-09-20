@@ -191,12 +191,16 @@ npm install && npm run build
 cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
-php artisan migrate --seed   # デモデータを投入
+php artisan migrate --seed   # デモデータ（タスク100件・タグ6種）を投入
 
 php artisan serve
 ```
 
 デモアカウント: `demo@example.com` / `password123`
+
+シーダーはタスク 100 件を、ステータス・優先度・期限・タグ・サブタスクを散らして作成します。
+完了日は過去 2 週間に分散させているため、ダッシュボードの推移グラフやページネーションも
+投入直後から確認できます。
 
 ---
 
