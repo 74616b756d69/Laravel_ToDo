@@ -35,11 +35,17 @@
         @foreach ($lanes as $lane)
             @php($key = $lane['status']->id)
             <section class="card flex max-h-[70vh] min-h-0 flex-col overflow-hidden md:max-h-none">
+                {{--
+                    レーンの頭にカテゴリ色の帯を引く。レーンが 4 本以上になると
+                    どこまでが「進行中」なのかが名前だけでは追えなくなるため、
+                    色で塊が見えるようにしている。
+                --}}
+                <div class="h-1 shrink-0 {{ $lane['status']->dotClasses() }}"></div>
                 <header class="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
-                    <x-badge :classes="$lane['status']->badgeClasses()" :dot="$lane['status']->dotClasses()">
+                    <h2 class="text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300">
                         {{ $lane['status']->name }}
-                    </x-badge>
-                    <span class="ml-auto text-xs font-medium text-slate-500 tabular-nums dark:text-slate-400"
+                    </h2>
+                    <span class="ml-auto grid min-w-6 place-items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300"
                           data-lane-count="{{ $key }}">{{ $lane['tasks']->count() }}</span>
                 </header>
 
@@ -50,11 +56,23 @@
                         <li id="task-{{ $task->id }}" data-task-id="{{ $task->id }}"
                             data-move-url="{{ route('board.move', $task) }}"
                             class="scroll-mt-2 cursor-grab rounded-xl border border-slate-200 bg-white p-3 target:border-brand-500 target:ring-2 target:ring-brand-500/30 active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800">
-                            <span class="font-mono text-[11px] tracking-wider text-slate-400 dark:text-slate-500">
-                                {{ $task->key() }}
-                            </span>
+                            {{--
+                                カードの中は上下 2 段。上が「何か」（種別・キー・要約）、
+                                下が「いつ・誰が」（期限・タグ・見積り・担当者）。
+                                レーンの中で縦に並ぶので、担当者を必ず右下の同じ位置に置く。
+                            --}}
+                            <div class="flex items-center gap-1.5">
+                                <x-issue-type-mark :type="$task->issue_type" />
+                                <a href="{{ route('tasks.show', $task) }}"
+                                   class="font-mono text-[11px] tracking-wider text-slate-400 transition hover:text-brand-700 dark:text-slate-500 dark:hover:text-brand-300">
+                                    {{ $task->key() }}
+                                </a>
+                                <x-priority-mark :priority="$task->priority" class="ml-auto" />
+                            </div>
+
                             <a href="{{ route('tasks.show', $task) }}"
-                               class="block text-sm font-medium hover:text-brand-700 dark:hover:text-brand-300">
+                               class="mt-1 block text-sm font-medium transition hover:text-brand-700 dark:hover:text-brand-300
+                                      {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
                                 {{ $task->title }}
                             </a>
 
@@ -64,22 +82,26 @@
                                 </div>
                             @endif
 
-                            <div class="mt-2 flex flex-wrap items-center gap-1">
-                                <x-badge :classes="$task->priority->badgeClasses()" :dot="$task->priority->dotClasses()">
-                                    {{ $task->priority->label() }}
-                                </x-badge>
+                            @if ($task->tags->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    @foreach ($task->tags as $tag)
+                                        <x-tag-mark :tag="$tag" />
+                                    @endforeach
+                                </div>
+                            @endif
 
-                                @foreach ($task->tags as $tag)
-                                    <x-badge :classes="$tag->color->badgeClasses()">{{ $tag->name }}</x-badge>
-                                @endforeach
+                            <div class="mt-2 flex items-center gap-2">
+                                <x-due-date :issue="$task" />
 
-                                @if ($task->due_date)
-                                    <x-badge :classes="$task->isOverdue()
-                                            ? 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30'
-                                            : 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'">
-                                        <x-icon name="calendar" class="size-3.5" /> {{ $task->due_date->format('n/j') }}
-                                    </x-badge>
-                                @endif
+                                <span class="ml-auto flex shrink-0 items-center gap-1.5">
+                                    @if ($task->story_points !== null)
+                                        <span title="ストーリーポイント"
+                                              class="grid size-5 place-items-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300">
+                                            {{ $task->story_points }}
+                                        </span>
+                                    @endif
+                                    <x-avatar :user="$task->assignee" />
+                                </span>
                             </div>
                         </li>
                     @endforeach

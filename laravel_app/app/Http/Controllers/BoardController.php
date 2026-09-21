@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Status;
 use App\Services\IssueOrderingService;
 use App\Services\WorkflowService;
+use App\Support\ProjectContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,13 +21,14 @@ class BoardController extends Controller
     public function __construct(
         private readonly WorkflowService $workflows,
         private readonly IssueOrderingService $ordering,
+        private readonly ProjectContext $context,
     ) {}
 
     public function index(): View
     {
         // ボードは 1 プロジェクトのワークフローを映すものなので、
-        // レーンの出どころになるプロジェクトを 1 つ決める
-        $project = Project::personalFor(Auth::user());
+        // レーンの出どころはヘッダーで選ばれているプロジェクトに従う
+        $project = $this->context->current(Auth::user());
 
         $statuses = $project->statuses()->get();
 

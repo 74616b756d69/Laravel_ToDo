@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "laravel",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["laravel_app/artisan", "serve", "--port=8123"],
+      "port": 8123
+    }
+  ]
+}

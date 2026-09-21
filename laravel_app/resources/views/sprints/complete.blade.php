@@ -78,9 +78,10 @@
                 <ul class="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-white/5 dark:border-slate-700">
                     @foreach ($incomplete as $issue)
                         <li class="flex flex-wrap items-center gap-3 px-3 py-2">
-                            <span class="font-mono text-[11px] tracking-wider text-slate-400 dark:text-slate-500">
+                            <a href="{{ route('tasks.show', $issue) }}"
+                               class="font-mono text-[11px] tracking-wider text-slate-400 hover:text-brand-700 dark:text-slate-500 dark:hover:text-brand-300">
                                 {{ $issue->key() }}
-                            </span>
+                            </a>
                             <span class="min-w-0 flex-1 truncate text-sm">{{ $issue->title }}</span>
                             <x-badge :classes="$issue->status->badgeClasses()">{{ $issue->status->name }}</x-badge>
                         </li>

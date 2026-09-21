@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Task;
 
 use App\Http\Controllers\Controller;
 use App\Models\Issue;
-use App\Models\Project;
 use App\Models\Status;
 use App\Support\ParsedQuickAdd;
+use App\Support\ProjectContext;
 use App\Support\QuickAddParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,8 +28,8 @@ class QuickAddController extends Controller
             attributes: ['quick' => '入力', 'status' => 'ステータス'],
         );
 
-        // プロジェクト選択 UI はまだ無いので、個人プロジェクトへ入れる
-        $project = Project::personalFor(Auth::user());
+        // 作成先はヘッダーで選ばれているプロジェクト
+        $project = app(ProjectContext::class)->current(Auth::user());
 
         // レーン指定が無ければ初期ステータス。他プロジェクトの ID は弾く
         $status = blank($validated['status'] ?? null)

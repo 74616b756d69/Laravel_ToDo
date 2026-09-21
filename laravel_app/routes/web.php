@@ -6,15 +6,23 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BacklogController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Issue\BrowseController;
 use App\Http\Controllers\Issue\CommentController;
 use App\Http\Controllers\Issue\IssueLinkController;
 use App\Http\Controllers\Project\ProjectMemberController;
+use App\Http\Controllers\Project\ProjectSwitchController;
+use App\Http\Controllers\Project\StatusController;
+use App\Http\Controllers\Project\WorkflowTransitionController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Sprint\SprintController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\Task\AssigneeController;
+use App\Http\Controllers\Task\IssueTypeController;
 use App\Http\Controllers\Task\QuickAddController;
 use App\Http\Controllers\Task\SubtaskController;
 use App\Http\Controllers\Task\TaskCompletionController;
+use App\Http\Controllers\Task\TransitionController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,10 +44,35 @@ Route::middleware('auth')->group(function () {
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // ヘッダーの検索窓。キーなら /browse、それ以外は一覧のキーワード検索へ振り分ける
+    Route::get('search', SearchController::class)->name('search');
+
+    // 課題キーで課題を開く（/browse/PROJ-123）。詳細の URL は /tasks/{id} のまま
+    Route::get('browse/{key}', BrowseController::class)
+        ->where('key', '[A-Za-z]{2,10}-[0-9]+')
+        ->name('browse');
+
     // プロジェクト（Phase 1: 器とメンバーのみ。課題はまだ既存のタスク側にある）
+    // 切り替えは projects/{project} に飲み込まれないよう resource より先に置く
+    Route::patch('projects/current', ProjectSwitchController::class)->name('projects.switch');
     Route::resource('projects', ProjectController::class)->except(['show']);
     Route::post('projects/{project}/members', [ProjectMemberController::class, 'store'])
         ->name('projects.members.store');
+
+    // ワークフロー設定（管理者のみ）。
+    // scopeBindings で、URL の {status} / {transition} は {project} 配下のものしか解決しない
+    Route::prefix('projects/{project}')->name('projects.')->scopeBindings()->group(function () {
+        Route::post('statuses', [StatusController::class, 'store'])->name('statuses.store');
+        Route::put('statuses/{status}', [StatusController::class, 'update'])->name('statuses.update');
+        Route::patch('statuses/{status}/move', [StatusController::class, 'move'])->name('statuses.move');
+        // 削除は「残った課題をどこへ送るか」を選んでから実行する 2 段構え
+        Route::get('statuses/{status}/delete', [StatusController::class, 'confirmDelete'])->name('statuses.delete');
+        Route::delete('statuses/{status}', [StatusController::class, 'destroy'])->name('statuses.destroy');
+
+        Route::post('transitions', [WorkflowTransitionController::class, 'store'])->name('transitions.store');
+        Route::delete('transitions/{transition}', [WorkflowTransitionController::class, 'destroy'])
+            ->name('transitions.destroy');
+    });
 
     // バックログとスプリント
     Route::get('backlog', [BacklogController::class, 'index'])->name('backlog');
@@ -65,6 +98,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('tasks', TaskController::class);
     // 一覧から 1 クリックで完了状態を切り替えるための専用ルート
     Route::patch('tasks/{task}/completion', TaskCompletionController::class)->name('tasks.completion');
+
+    // 詳細画面からのインライン操作。編集フォームを開かずに 1 リクエストで変える
+    Route::patch('tasks/{task}/transition', TransitionController::class)->name('tasks.transition');
+    Route::patch('tasks/{task}/assignee', AssigneeController::class)->name('tasks.assignee');
+    Route::patch('tasks/{task}/type', IssueTypeController::class)->name('tasks.type');
 
     // コメント（課題に従属するのでネストする）。履歴は不変なのでルートを持たない。
     // 投稿はサニタイズ（HTMLPurifier）が重いので、連投に上限を設ける

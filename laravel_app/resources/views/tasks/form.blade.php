@@ -20,6 +20,32 @@
         <x-input-error :messages="$errors->get('content')" />
     </div>
 
+    <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+            <label for="issue_type" class="field-label">課題タイプ</label>
+            <select id="issue_type" name="issue_type" class="field">
+                @foreach (\App\Enums\IssueType::options() as $value => $label)
+                    <option value="{{ $value }}"
+                            @selected(old('issue_type', $task->issue_type?->value) === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <x-input-error :messages="$errors->get('issue_type')" />
+        </div>
+
+        <div>
+            <label for="assignee" class="field-label">担当者</label>
+            {{-- 候補はこのプロジェクトのメンバーだけ。未割り当ても選べる --}}
+            <select id="assignee" name="assignee" class="field">
+                <option value="">未割り当て</option>
+                @foreach ($members as $member)
+                    <option value="{{ $member->id }}"
+                            @selected((int) old('assignee', $task->assignee_id) === $member->id)>{{ $member->name }}</option>
+                @endforeach
+            </select>
+            <x-input-error :messages="$errors->get('assignee')" />
+        </div>
+    </div>
+
     <x-tag-picker :tags="$tags" :selected="old('tags', $task->tags->pluck('id')->all())" />
 
     <div class="grid gap-5 sm:grid-cols-3">

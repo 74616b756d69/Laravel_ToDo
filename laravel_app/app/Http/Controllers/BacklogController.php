@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Sprint;
 use App\Services\IssueOrderingService;
 use App\Services\SprintService;
+use App\Support\ProjectContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,11 +27,13 @@ class BacklogController extends Controller
     public function __construct(
         private readonly SprintService $sprints,
         private readonly IssueOrderingService $ordering,
+        private readonly ProjectContext $context,
     ) {}
 
     public function index(): View
     {
-        $project = Project::personalFor(Auth::user());
+        // スプリントもバックログもプロジェクト単位。ヘッダーの選択に従う
+        $project = $this->context->current(Auth::user());
 
         $issues = $this->query($project)->get();
 

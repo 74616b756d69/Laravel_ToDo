@@ -34,6 +34,13 @@ document.querySelectorAll('form[data-auto-submit]').forEach((form) => {
             form.requestSubmit();
         }
     });
+
+    /*
+     * ここまで来たということは、選択だけで送信できる。
+     * 送信ボタンは JS 無効時の控えなので、印を付けて CSS 側で隠す
+     * （課題画面の担当者・課題タイプは、選ぶだけで変わるのが本来の姿）。
+     */
+    form.dataset.autoSubmit = 'ready';
 });
 
 /**
@@ -51,3 +58,31 @@ if (document.querySelector('[data-board]')) {
 if (document.querySelector('[data-backlog]')) {
     import('./features/backlog').then(({ bootBacklog }) => bootBacklog());
 }
+
+/**
+ * ヘッダーのメニュー（details）を、外側のクリックと Escape で閉じる。
+ *
+ * details だけでも開閉はできるので、これは増補。
+ * 開いたまま別のメニューを開くと 2 枚重なるので、開いた側以外は閉じる。
+ */
+document.addEventListener('click', (event) => {
+    const opened = event.target.closest('[data-menu][open]');
+
+    document.querySelectorAll('[data-menu][open]').forEach((menu) => {
+        if (menu !== opened) {
+            menu.open = false;
+        }
+    });
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+        return;
+    }
+
+    document.querySelectorAll('[data-menu][open]').forEach((menu) => {
+        menu.open = false;
+        // 閉じたあとの行き先が消えないよう、開いていたつまみへ戻す
+        menu.querySelector('summary')?.focus();
+    });
+});

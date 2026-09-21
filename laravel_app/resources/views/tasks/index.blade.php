@@ -58,29 +58,47 @@
                      :href="route('tasks.index', ['overdue' => 1])" :active="$filters['overdue']" />
     </div>
 
-    {{-- 絞り込みフォーム。選択のたびに JS で自動送信し、JS 無効でも「適用」で送れる --}}
+    @php
+        /*
+         * いま効いている条件を、外せるバッジとして並べるための材料。
+         *
+         * 細かい絞り込みは下のパネルに畳んであるので、畳んだままでも
+         * 「何で絞られているか」は必ず見えている必要がある。
+         * 外す URL は該当のキーだけを落として作る（他の条件は残す）。
+         */
+        $without = fn (string $key) => request()->fullUrlWithoutQuery([$key, 'page']);
+
+        $activeFilters = collect([
+            $filters['keyword'] ? ['label' => '「'.$filters['keyword'].'」', 'url' => $without('keyword')] : null,
+            $filters['project'] ? ['label' => $projects->firstWhere('id', $filters['project'])?->key, 'url' => $without('project')] : null,
+            $filters['category'] ? ['label' => $filters['category']->label(), 'url' => $without('category')] : null,
+            $filters['status'] ? ['label' => $statuses->firstWhere('id', $filters['status'])?->name, 'url' => $without('status')] : null,
+            $filters['priority'] ? ['label' => '優先度'.$filters['priority']->label(), 'url' => $without('priority')] : null,
+            $filters['tag'] ? ['label' => $tags->firstWhere('id', $filters['tag'])?->name, 'url' => $without('tag')] : null,
+            $filters['overdue'] ? ['label' => '期限切れのみ', 'url' => $without('overdue')] : null,
+        ])->filter(fn (?array $filter) => $filter !== null && $filter['label'] !== null);
+
+        // キーワードと並び替えは常に見えているので、畳んだ中にある条件だけを数える
+        $foldedCount = $activeFilters->count() - ($filters['keyword'] ? 1 : 0);
+    @endphp
+
+    {{--
+        絞り込み。よく使うキーワードと並び替えだけを常時出し、
+        残りは「詳細な絞り込み」へ畳む。選択のたびに JS で自動送信し、
+        JS 無効でも「適用」で送れる。
+    --}}
     <form action="{{ route('tasks.index') }}" method="GET" data-auto-submit class="card mb-4 p-4">
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label class="relative sm:col-span-2">
+        <div class="flex flex-wrap items-center gap-2">
+            <label class="relative min-w-52 flex-1">
                 <span class="sr-only">キーワード検索</span>
                 <x-icon name="search" class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                 <input type="search" name="keyword" value="{{ $filters['keyword'] }}"
                        placeholder="タイトル・内容を検索" class="field pl-9">
             </label>
 
-            <label>
-                <span class="sr-only">ステータス</span>
-                <select name="status" class="field">
-                    <option value="">ステータス：すべて</option>
-                    @foreach ($statuses as $status)
-                        <option value="{{ $status->id }}" @selected($filters['status'] === $status->id)>{{ $status->name }}</option>
-                    @endforeach
-                </select>
-            </label>
-
-            <label>
+            <label class="shrink-0">
                 <span class="sr-only">並び替え</span>
-                <select name="sort" class="field">
+                <select name="sort" class="field w-auto">
                     @foreach ($sorts as $value => $label)
                         <option value="{{ $value }}" @selected($filters['sort'] === $value)>{{ $label }}</option>
                     @endforeach
@@ -88,56 +106,119 @@
             </label>
         </div>
 
-        @if ($tags->isNotEmpty())
-            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-white/5">
-                <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">タグ:</span>
-                {{-- ラジオなので、同じタグを再度押す代わりに「すべて」で解除する --}}
-                <label class="cursor-pointer">
-                    <input type="radio" name="tag" value="" class="peer sr-only" @checked(! $filters['tag'])>
-                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 ring-inset transition peer-checked:bg-slate-900 peer-checked:text-white dark:text-slate-400 dark:ring-slate-700 dark:peer-checked:bg-white dark:peer-checked:text-slate-900">
-                        すべて
-                    </span>
-                </label>
-                @foreach ($tags as $tag)
-                    <label class="cursor-pointer">
-                        <input type="radio" name="tag" value="{{ $tag->id }}" class="peer sr-only"
-                               @checked($filters['tag'] === $tag->id)>
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition
-                                     opacity-60 grayscale peer-checked:opacity-100 peer-checked:grayscale-0 {{ $tag->color->badgeClasses() }}">
-                            <span class="size-1.5 rounded-full {{ $tag->color->swatchClasses() }}"></span>{{ $tag->name }}
-                        </span>
+        {{-- 条件が効いているときは、畳んだままでも中身が分かるよう開いておく --}}
+        <details class="mt-3" @if ($foldedCount > 0) open @endif>
+            <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                <x-icon name="filter" class="size-4" />
+                詳細な絞り込み
+                @if ($foldedCount > 0)
+                    <span class="rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white tabular-nums">{{ $foldedCount }}</span>
+                @endif
+            </summary>
+
+            <div class="mt-3 space-y-3 border-t border-slate-100 pt-3 dark:border-white/5">
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    @if ($projects->count() > 1)
+                        {{-- 一覧は横断ビューのまま。プロジェクトは絞り込みの 1 つとして足す --}}
+                        <label>
+                            <span class="sr-only">プロジェクト</span>
+                            <select name="project" class="field">
+                                <option value="">プロジェクト：すべて</option>
+                                @foreach ($projects as $project)
+                                    <option value="{{ $project->id }}" @selected($filters['project'] === $project->id)>
+                                        {{ $project->key }} — {{ $project->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </label>
+                    @endif
+
+                    <label>
+                        <span class="sr-only">ステータス</span>
+                        <select name="status" class="field">
+                            <option value="">ステータス：すべて</option>
+                            @foreach ($statuses as $status)
+                                <option value="{{ $status->id }}" @selected($filters['status'] === $status->id)>{{ $status->name }}</option>
+                            @endforeach
+                        </select>
                     </label>
+
+                    {{-- ラジオではなく選択にする。ラジオだと一度選んだ優先度を単独で外せない --}}
+                    <label>
+                        <span class="sr-only">優先度</span>
+                        <select name="priority" class="field">
+                            <option value="">優先度：すべて</option>
+                            @foreach (\App\Enums\TaskPriority::options() as $value => $label)
+                                <option value="{{ $value }}" @selected($filters['priority']?->value === $value)>優先度{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                </div>
+
+                @if ($tags->isNotEmpty())
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">タグ:</span>
+                        {{-- ラジオなので、同じタグを再度押す代わりに「すべて」で解除する --}}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="tag" value="" class="peer sr-only" @checked(! $filters['tag'])>
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 ring-inset transition peer-checked:bg-slate-900 peer-checked:text-white dark:text-slate-400 dark:ring-slate-700 dark:peer-checked:bg-white dark:peer-checked:text-slate-900">
+                                すべて
+                            </span>
+                        </label>
+                        @foreach ($tags as $tag)
+                            <label class="cursor-pointer">
+                                <input type="radio" name="tag" value="{{ $tag->id }}" class="peer sr-only"
+                                       @checked($filters['tag'] === $tag->id)>
+                                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition
+                                             opacity-60 grayscale peer-checked:opacity-100 peer-checked:grayscale-0 {{ $tag->color->badgeClasses() }}">
+                                    <span class="size-1.5 rounded-full {{ $tag->color->swatchClasses() }}"></span>{{ $tag->name }}
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                        <input type="checkbox" name="overdue" value="1" @checked($filters['overdue'])
+                               class="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900">
+                        期限切れのみ
+                    </label>
+
+                    {{-- 集計カードから来た絞り込みも、パネルを開いたときに引き継ぐ --}}
+                    @if ($filters['category'])
+                        <input type="hidden" name="category" value="{{ $filters['category']->value }}">
+                    @endif
+
+                    <button type="submit"
+                            class="ml-auto rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
+                        適用
+                    </button>
+                </div>
+            </div>
+        </details>
+
+        @if ($activeFilters->isNotEmpty())
+            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-white/5">
+                <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">絞り込み中:</span>
+                @foreach ($activeFilters as $filter)
+                    {{-- バッジ自体が解除ボタン。1 つずつ外せる --}}
+                    <a href="{{ $filter['url'] }}"
+                       class="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pr-1.5 pl-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
+                        {{ $filter['label'] }}
+                        <x-icon name="close" class="size-3.5 text-slate-400" />
+                        <span class="sr-only">この条件を外す</span>
+                    </a>
                 @endforeach
+
+                @if ($activeFilters->count() > 1)
+                    <a href="{{ route('tasks.index') }}"
+                       class="ml-1 text-xs text-slate-500 underline transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                        すべて解除
+                    </a>
+                @endif
             </div>
         @endif
-
-        <div class="mt-3 flex flex-wrap items-center gap-3">
-            @foreach (\App\Enums\TaskPriority::options() as $value => $label)
-                <label class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                    <input type="radio" name="priority" value="{{ $value }}"
-                           @checked($filters['priority']?->value === $value)
-                           class="size-4 border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900">
-                    優先度{{ $label }}
-                </label>
-            @endforeach
-
-            <label class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                <input type="checkbox" name="overdue" value="1" @checked($filters['overdue'])
-                       class="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900">
-                期限切れのみ
-            </label>
-
-            <div class="ml-auto flex gap-2">
-                @if ($filters['keyword'] || $filters['status'] || $filters['priority'] || $filters['tag'] || $filters['overdue'])
-                    <a href="{{ route('tasks.index') }}"
-                       class="rounded-xl px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-100 dark:hover:bg-white/5">条件をクリア</a>
-                @endif
-                <button type="submit"
-                        class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
-                    適用
-                </button>
-            </div>
-        </div>
     </form>
 
     <div class="card overflow-hidden">

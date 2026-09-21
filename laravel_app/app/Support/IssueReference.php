@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 /**
@@ -35,6 +37,41 @@ class IssueReference
 
         return preg_match(self::KEY_PATTERN, $input) === 1
             || preg_match(self::URL_PATTERN, $input) === 1;
+    }
+
+    /**
+     * 入力が課題キー（PROJ-123）の形か。
+     *
+     * ヘッダーの検索窓が「キーなら直行、それ以外はキーワード検索」を
+     * 分けるために使う。URL 形式はここには含めない。
+     */
+    public static function looksLikeKey(string $input): bool
+    {
+        return preg_match(self::KEY_PATTERN, trim($input)) === 1;
+    }
+
+    /**
+     * 課題キーから、そのユーザーに見える課題を横断で探す。見つからなければ null。
+     *
+     * /browse/PROJ-123 のようにプロジェクトが分からない状態で引くための入口。
+     * 範囲を visibleTo で絞るので、所属していないプロジェクトのキーは
+     * 「存在しない」と同じく null になる（存在の有無も漏らさない）。
+     */
+    public static function resolveKeyFor(string $input, User $user): ?Issue
+    {
+        if (preg_match(self::KEY_PATTERN, trim($input), $matches) !== 1) {
+            return null;
+        }
+
+        // プロジェクトキーは常に大文字で保存されている
+        $prefix = Str::upper($matches[1]);
+
+        return Issue::query()
+            ->visibleTo($user)
+            ->whereHas('project', fn (Builder $query) => $query->where('key', $prefix))
+            ->where('issue_number', (int) $matches[2])
+            ->with('project')
+            ->first();
     }
 
     /**

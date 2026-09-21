@@ -4,6 +4,7 @@ namespace App\Http\Requests\Sprint;
 
 use App\Models\Project;
 use App\Models\Sprint;
+use App\Support\ProjectContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -55,6 +56,7 @@ class SprintRequest extends FormRequest
 
     public function project(): Project
     {
-        return $this->route('sprint')?->project ?? Project::personalFor($this->user());
+        return $this->route('sprint')?->project
+            ?? app(ProjectContext::class)->current($this->user());
     }
 }

@@ -5,19 +5,23 @@ namespace App\Http\Controllers\Sprint;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sprint\CompleteSprintRequest;
 use App\Http\Requests\Sprint\SprintRequest;
-use App\Models\Project;
 use App\Models\Sprint;
 use App\Services\SprintService;
+use App\Support\ProjectContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class SprintController extends Controller
 {
-    public function __construct(private readonly SprintService $sprints) {}
+    public function __construct(
+        private readonly SprintService $sprints,
+        private readonly ProjectContext $context,
+    ) {}
 
     public function store(SprintRequest $request): RedirectResponse
     {
-        $project = Project::personalFor($request->user());
+        // バックログ画面で見ているプロジェクトのスプリントとして作る
+        $project = $this->context->current($request->user());
 
         $this->authorize('create', [Sprint::class, $project]);
 

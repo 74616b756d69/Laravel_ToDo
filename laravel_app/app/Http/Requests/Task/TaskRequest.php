@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Task;
 
+use App\Enums\IssueType;
 use App\Enums\TaskPriority;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Status;
+use App\Models\User;
+use App\Support\ProjectContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -42,6 +45,14 @@ class TaskRequest extends FormRequest
                 'required', 'integer',
                 Rule::exists('statuses', 'id')->where('project_id', $this->project()->id),
             ],
+            // 課題タイプと担当者は欄が無い経路（クイック追加など）もあるので sometimes。
+            // 送られてきたときだけ検証し、無ければ既存の値・既定値に任せる
+            'issue_type' => ['sometimes', Rule::enum(IssueType::class)],
+            // 担当者はそのプロジェクトのメンバーだけ。空文字は未割り当て
+            'assignee' => [
+                'sometimes', 'nullable', 'integer',
+                Rule::exists('project_members', 'user_id')->where('project_id', $this->project()->id),
+            ],
             'priority' => ['required', Rule::enum(TaskPriority::class)],
             'due_date' => ['nullable', 'date'],
             'tags' => ['array'],
@@ -60,6 +71,8 @@ class TaskRequest extends FormRequest
             'title' => 'タイトル',
             'content' => '内容',
             'status' => 'ステータス',
+            'issue_type' => '課題タイプ',
+            'assignee' => '担当者',
             'priority' => '優先度',
             'due_date' => '期限',
             'tags' => 'タグ',
@@ -68,11 +81,12 @@ class TaskRequest extends FormRequest
 
     /**
      * この課題が属する（属することになる）プロジェクト。
-     * 更新なら課題のプロジェクト、新規ならログイン中ユーザーの個人プロジェクト。
+     * 更新なら課題のプロジェクト、新規ならいま見ているプロジェクト。
      */
     public function project(): Project
     {
-        return $this->route('task')?->project ?? Project::personalFor($this->user());
+        return $this->route('task')?->project
+            ?? app(ProjectContext::class)->current($this->user());
     }
 
     /**
@@ -84,10 +98,32 @@ class TaskRequest extends FormRequest
     }
 
     /**
-     * ステータス以外の属性。
+     * 担当者の欄が送られてきたか。
+     *
+     * 更新では「空で送られた（＝未割り当てにしたい）」と
+     * 「そもそも欄が無い」を区別する必要がある。
+     */
+    public function hasAssignee(): bool
+    {
+        return array_key_exists('assignee', $this->validated());
+    }
+
+    /**
+     * 指定された担当者。未割り当てなら null。
+     */
+    public function assignee(): ?User
+    {
+        $id = $this->validated()['assignee'] ?? null;
+
+        return blank($id) ? null : User::findOrFail($id);
+    }
+
+    /**
+     * ステータスと担当者以外の属性。
      *
      * ステータスをここに含めないのは、遷移の可否を検査せずに書き換えてしまわないため。
      * 状態の変更は WorkflowService::transition() が受け持つ。
+     * 担当者も同じ理由で外す（IssueAssignmentService が受け持つ）。
      *
      * @return array<string, mixed>
      */
@@ -95,7 +131,7 @@ class TaskRequest extends FormRequest
     {
         $validated = $this->validated();
 
-        unset($validated['tags'], $validated['status']);
+        unset($validated['tags'], $validated['status'], $validated['assignee']);
 
         return $validated;
     }

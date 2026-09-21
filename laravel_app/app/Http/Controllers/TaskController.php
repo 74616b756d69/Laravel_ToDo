@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\IssueType;
 use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
 use App\Http\Requests\Task\TaskRequest;
 use App\Models\Issue;
-use App\Models\Project;
 use App\Models\Status;
+use App\Services\IssueAssignmentService;
 use App\Services\IssueLinkService;
 use App\Services\WorkflowService;
 use App\Support\IssueTimeline;
+use App\Support\ProjectContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +24,8 @@ class TaskController extends Controller
     public function __construct(
         private readonly WorkflowService $workflows,
         private readonly IssueLinkService $links,
+        private readonly IssueAssignmentService $assignments,
+        private readonly ProjectContext $context,
     ) {}
 
     /**
@@ -46,6 +50,7 @@ class TaskController extends Controller
                 'children as done_children_count' => fn (Builder $query) => $query->completed(),
             ])
             ->search($filters['keyword'])
+            ->inProject($filters['project'])
             ->status($filters['status'])
             ->category($filters['category'])
             ->priority($filters['priority'])
@@ -53,7 +58,9 @@ class TaskController extends Controller
             ->when($filters['overdue'], fn (Builder $query) => $query->overdue())
             ->sorted($filters['sort'])
             ->paginate(10)
-            ->withQueryString();
+            ->withQueryString()
+            // 現在地の前後 1 ページぶんだけを出す。11 ページあっても番号は折り返さない
+            ->onEachSide(1);
 
         return view('tasks.index', [
             'tasks' => $tasks,
@@ -62,28 +69,37 @@ class TaskController extends Controller
             'sorts' => self::SORTS,
             'tags' => Auth::user()->tags,
             'statuses' => $this->statuses(),
+            // 横断ビューのままにしておき、プロジェクトは絞り込みの 1 つとして足す
+            'projects' => $this->context->available(Auth::user()),
         ]);
     }
 
     public function create(): View
     {
-        $project = Project::personalFor(Auth::user());
+        $project = $this->context->current(Auth::user());
 
-        $task = new Issue(['priority' => TaskPriority::Medium]);
+        $task = new Issue([
+            'issue_type' => IssueType::Task,
+            'priority' => TaskPriority::Medium,
+        ]);
         // 新規は初期ステータス（レーンのいちばん手前）から始まる
         $task->setRelation('status', $project->initialStatus());
+        // 既定の担当者は自分。未割り当てにもできる
+        // （保存前の表示用モデルなので、fillable を通さず直接置く）
+        $task->assignee_id = Auth::id();
 
         return view('tasks.create', [
             'task' => $task,
             'tags' => Auth::user()->tags,
             'statuses' => $project->statuses()->get(),
+            'members' => $project->users,
         ]);
     }
 
     public function store(TaskRequest $request): RedirectResponse
     {
-        // プロジェクト選択 UI はまだ無いので、個人プロジェクトへ入れる
-        $project = Project::personalFor($request->user());
+        // 作成先はヘッダーで選ばれているプロジェクト。採番もそこで行われる
+        $project = $this->context->current($request->user());
 
         $this->authorize('create', [Issue::class, $project]);
 
@@ -95,7 +111,10 @@ class TaskController extends Controller
             'status_id' => $status->id,
             'completed_at' => $status->isDone() ? now() : null,
             'reporter_id' => $request->user()->id,
-            'assignee_id' => $request->user()->id,
+            // 担当者の欄が無い経路（クイック追加など）では、これまでどおり自分に割り当てる
+            'assignee_id' => $request->hasAssignee()
+                ? $request->assignee()?->id
+                : $request->user()->id,
         ]);
 
         $task->tags()->sync($request->tagIds());
@@ -112,7 +131,8 @@ class TaskController extends Controller
         $this->authorize('view', $task);
 
         $task->load(
-            'tags', 'project', 'assignee', 'reporter', 'status', 'sprint', 'parent',
+            // 担当者の選択肢に project.users まで要る（遅延ロードを増やさない）
+            'tags', 'project.users', 'assignee', 'reporter', 'status', 'sprint', 'parent',
             // 子は 1 行にステータス・担当者・キーまで出すので、そこまで読む
             'children.status', 'children.assignee', 'children.project',
             'comments.user', 'activities.user',
@@ -125,6 +145,9 @@ class TaskController extends Controller
             'tab' => $tab,
             'timeline' => IssueTimeline::build($task, $tab),
             'linkedIssues' => $this->links->groupedFor($task),
+            // 編集フォームへ行かずに動かせるよう、次に取れる遷移と候補を渡す
+            'transitions' => $this->workflows->availableFor($task),
+            'members' => $task->project->users,
         ]);
     }
 
@@ -132,11 +155,14 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
+        $task->load('tags', 'status', 'assignee', 'project.users');
+
         return view('tasks.edit', [
-            'task' => $task->load('tags', 'status'),
+            'task' => $task,
             'tags' => Auth::user()->tags,
             // 現在地と、そこから行ける先だけを選べるようにする
             'statuses' => $this->workflows->availableFor($task)->prepend($task->status),
+            'members' => $task->project->users,
         ]);
     }
 
@@ -145,8 +171,13 @@ class TaskController extends Controller
         $this->authorize('update', $task);
 
         $task->update($request->taskAttributes());
-        // ステータスだけは検査を通す。禁止された遷移ならここで例外になる
+        // ステータスと担当者だけは検査を通す。禁止された遷移ならここで例外になる
         $this->workflows->transition($task, $request->status());
+
+        if ($request->hasAssignee()) {
+            $this->assignments->assign($task, $request->assignee());
+        }
+
         $task->tags()->sync($request->tagIds());
 
         return redirect()->route('tasks.show', $task)
@@ -224,7 +255,7 @@ class TaskController extends Controller
     /**
      * クエリ文字列を検証済みの絞り込み条件に変換する。
      *
-     * @return array{keyword: ?string, status: ?int, category: ?StatusCategory, priority: ?TaskPriority, tag: ?int, overdue: bool, sort: string}
+     * @return array{keyword: ?string, project: ?int, status: ?int, category: ?StatusCategory, priority: ?TaskPriority, tag: ?int, overdue: bool, sort: string}
      */
     private function filters(Request $request): array
     {
@@ -232,6 +263,7 @@ class TaskController extends Controller
 
         return [
             'keyword' => $request->string('keyword')->trim()->value() ?: null,
+            'project' => $request->integer('project') ?: null,
             'status' => $request->integer('status') ?: null,
             // 集計カードからの絞り込み。ステータス名ではなくカテゴリで横断する
             'category' => StatusCategory::tryFrom((string) $request->query('category')),

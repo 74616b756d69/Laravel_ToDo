@@ -34,14 +34,18 @@ class Issue extends Model
     /**
      * 利用者がフォームから直接決めてよい項目だけ。
      *
-     * status_id / sprint_id / parent_id / reporter_id などの外部キーは
+     * status_id / sprint_id / parent_id / reporter_id / assignee_id などの外部キーは
      * 意図的に外してある。これらを動かせるのは、遷移や移送の妥当性を
-     * 検査するサービス（WorkflowService / SprintService / Project::createIssue）だけで、
-     * そちらは forceFill で書く。
+     * 検査するサービス（WorkflowService / SprintService / IssueAssignmentService /
+     * Project::createIssue）だけで、そちらは forceFill で書く。
+     *
+     * issue_type は外部キーではなく、利用者が選ぶ課題の性質なのでここに入れる。
+     * 「親を持つか」は parent_id が決めるので、種別を変えても階層は動かない。
      */
     protected $fillable = [
         'title',
         'content',
+        'issue_type',
         'priority',
         'due_date',
         'position',
@@ -357,6 +361,19 @@ class Issue extends Model
             $query->where('title', 'like', "%{$escaped}%")
                 ->orWhere('content_text', 'like', "%{$escaped}%");
         });
+    }
+
+    /**
+     * 指定プロジェクトの課題だけに絞る。
+     *
+     * 一覧は複数プロジェクトを横断するので、絞り込みとしてだけ使う。
+     * 見える範囲を決めているのは visibleTo() のほうで、ここは置き換えではない。
+     *
+     * @param  Builder<Issue>  $query
+     */
+    public function scopeInProject(Builder $query, ?int $projectId): void
+    {
+        $query->when($projectId, fn (Builder $query) => $query->where('project_id', $projectId));
     }
 
     /**

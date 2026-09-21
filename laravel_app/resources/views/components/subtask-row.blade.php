@@ -21,9 +21,7 @@
         </button>
     </form>
 
-    <x-icon :name="$subtask->issue_type->icon()"
-            class="size-4 shrink-0 {{ $subtask->issue_type->iconClasses() }}"
-            :title="$subtask->issue_type->label()" />
+    <x-issue-type-mark :type="$subtask->issue_type" />
 
     <a href="{{ route('tasks.show', $subtask) }}"
        class="shrink-0 font-mono text-[11px] tracking-wider text-slate-400 hover:text-brand-700 dark:text-slate-500 dark:hover:text-brand-300">

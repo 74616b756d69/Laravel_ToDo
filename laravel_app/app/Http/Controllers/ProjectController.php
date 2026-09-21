@@ -54,7 +54,13 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $project->load('organization', 'users');
+        // ワークフロー欄で件数と遷移先の名前まで出すので、そこまで読む
+        $project->load([
+            'organization',
+            'users',
+            'statuses' => fn ($query) => $query->withCount('issues'),
+            'transitions' => fn ($query) => $query->with('fromStatus', 'toStatus'),
+        ]);
 
         return view('projects.edit', compact('project'));
     }

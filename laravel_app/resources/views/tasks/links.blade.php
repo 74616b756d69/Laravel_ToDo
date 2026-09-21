@@ -2,9 +2,9 @@
     リンクされた作業項目。
     サブタスク（親子）とは別で、関連づけても相手は一覧やボードに残る。
 --}}
-<section class="border-t border-slate-100 px-5 py-5 sm:px-6 dark:border-white/5">
+<section class="card px-5 py-5 sm:px-6">
     <div class="mb-3 flex items-center justify-between gap-3">
-        <h3 class="text-sm font-semibold">リンクされた作業項目</h3>
+        <h2 class="text-sm font-semibold">リンクされた作業項目</h2>
         @if ($linkedIssues->isNotEmpty())
             <span class="text-xs text-slate-500 tabular-nums dark:text-slate-400">
                 {{ $linkedIssues->flatten(1)->count() }} 件

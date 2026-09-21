@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
 use App\Models\Issue;
-use App\Models\Project;
 use App\Services\SprintService;
+use App\Support\ProjectContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -18,7 +18,10 @@ class DashboardController extends Controller
     /** 完了数の推移を見る日数 */
     private const TREND_DAYS = 14;
 
-    public function __construct(private readonly SprintService $sprints) {}
+    public function __construct(
+        private readonly SprintService $sprints,
+        private readonly ProjectContext $context,
+    ) {}
 
     public function index(): View
     {
@@ -30,7 +33,7 @@ class DashboardController extends Controller
             'upcoming' => $this->upcoming(),
             'topTags' => $this->topTags(),
             // 進行中スプリントがあればバーンダウンを出す。無ければ null
-            'burndown' => $this->sprints->burndownFor(Project::personalFor(Auth::user())),
+            'burndown' => $this->sprints->burndownFor($this->context->current(Auth::user())),
         ]);
     }
 

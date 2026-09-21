@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
@@ -70,6 +69,15 @@
     .field-label {
         @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
     }
+}
+
+/*
+   選ぶだけで送信されるフォームでは、送信ボタンは JS 無効時の控えでしかない。
+   JS が初期化できたフォームにだけ ready が付くので、そのときだけ隠す。
+   （最初から hidden にしないのは、JS が無い環境で操作不能にしないため）
+*/
+form[data-auto-submit='ready'] [data-submit-fallback] {
+    display: none;
 }
 
 /* ---------------------------------------------------------------------------
