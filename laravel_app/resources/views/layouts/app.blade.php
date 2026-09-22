@@ -7,7 +7,7 @@
     <title>@yield('title', 'タスク') | {{ config('app.name') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=noto-sans-jp:400,500,700" rel="stylesheet">
+    <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500|noto-sans-jp:400,500,700" rel="stylesheet">
 
     {{-- 描画前にテーマを当てて、ダークモード時のちらつきを防ぐ --}}
     <script>

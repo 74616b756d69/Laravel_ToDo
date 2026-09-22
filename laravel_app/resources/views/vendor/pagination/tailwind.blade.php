@@ -12,7 +12,7 @@
     要素は「ページ番号 => URL の配列」か、区切りの文字列（…）のいずれか。
 --}}
 @php
-    $link = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 text-sm transition';
+    $link = 'inline-flex h-8 min-w-8 items-center justify-center rounded-sm px-2 text-sm transition';
     $inactive = $link.' text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5';
     $disabled = $link.' text-slate-300 dark:text-slate-600';
 @endphp
@@ -48,10 +48,11 @@
                     @if (is_array($element))
                         @foreach ($element as $page => $url)
                             @if ($page == $paginator->currentPage())
-                                <span class="{{ $link }} bg-brand-600 font-medium text-white tabular-nums"
+                                {{-- 現在地は塗りつぶさず、下の罫線 1 本で示す --}}
+                                <span class="{{ $link }} border-b-2 border-brand-600 font-mono font-medium tabular-nums dark:border-brand-400"
                                       aria-current="page">{{ $page }}</span>
                             @else
-                                <a href="{{ $url }}" class="{{ $inactive }} tabular-nums"
+                                <a href="{{ $url }}" class="{{ $inactive }} font-mono tabular-nums"
                                    aria-label="{{ $page }} ページ目">{{ $page }}</a>
                             @endif
                         @endforeach

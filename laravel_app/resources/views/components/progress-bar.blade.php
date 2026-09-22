@@ -7,16 +7,16 @@
         @unless ($compact)
             <span>サブタスク {{ $done }}/{{ $total }}</span>
         @else
-            <span class="tabular-nums">{{ $done }}/{{ $total }}</span>
+            <span class="font-mono tabular-nums">{{ $done }}/{{ $total }}</span>
         @endunless
         @unless ($compact)
-            <span class="tabular-nums font-medium">{{ $percent }}%</span>
+            <span class="font-mono font-medium tabular-nums">{{ $percent }}%</span>
         @endunless
     </div>
 
-    <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+    <div class="h-1 w-full overflow-hidden rounded-xs bg-slate-200 dark:bg-slate-700"
          role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100"
          aria-label="サブタスクの進捗">
-        <div class="h-full rounded-full bg-brand-500 transition-[width] duration-300" style="width: {{ $percent }}%"></div>
+        <div class="h-full bg-brand-600 transition-[width] duration-300 dark:bg-brand-400" style="width: {{ $percent }}%"></div>
     </div>
 </div>

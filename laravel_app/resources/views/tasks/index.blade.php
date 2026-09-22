@@ -3,15 +3,15 @@
 @section('title', 'タスク一覧')
 
 @section('content')
-    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight">タスク一覧</h1>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                全 {{ $summary['total'] }} 件のうち {{ $tasks->total() }} 件を表示しています。
-            </p>
-        </div>
+    {{-- 見出しは大きくせず、件数を同じ行に置いて 1 行に収める --}}
+    <div class="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 class="text-base font-semibold tracking-tight">タスク一覧</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+            全 <span class="font-mono tabular-nums">{{ $summary['total'] }}</span> 件のうち
+            <span class="font-mono tabular-nums">{{ $tasks->total() }}</span> 件を表示しています。
+        </p>
         <a href="{{ route('tasks.create') }}"
-           class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+           class="ml-auto text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
             詳しく入力して作成 →
         </a>
     </div>
@@ -20,30 +20,30 @@
         クイック追加。1 行に書いた期限・タグ・優先度をサーバー側で解釈する。
         JS に依存しない通常のフォーム送信で完結させている。
     --}}
-    <form action="{{ route('tasks.quick') }}" method="POST" class="mb-5">
+    <form action="{{ route('tasks.quick') }}" method="POST" class="mb-3">
         @csrf
         <div class="relative">
             <input type="text" name="quick" value="{{ old('quick') }}" maxlength="200" required autofocus
                    placeholder="明日 請求書を送る #仕事 !高"
-                   class="field pr-11 @error('quick') border-rose-400 @enderror">
+                   class="field pr-10 @error('quick') border-rose-400 @enderror">
             {{-- 送信は入力欄の中に置く。Enter でも送れることをアイコンで示す --}}
             <button type="submit" aria-label="追加" title="追加（Enter）"
-                    class="absolute inset-y-1 right-1 grid w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white">
+                    class="absolute inset-y-1 right-1 grid w-8 place-items-center rounded-sm text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white">
                 <x-icon name="enter" class="size-4" />
             </button>
         </div>
 
         <x-input-error :messages="$errors->get('quick')" />
 
-        <p class="mt-1.5 text-xs text-slate-400">
+        <p class="mt-1 text-xs text-slate-400">
             <code class="text-slate-500 dark:text-slate-400">#タグ</code>
             <code class="ml-2 text-slate-500 dark:text-slate-400">!高 / !中 / !低</code>
             <span class="ml-2">日付（明日・来週金曜・3日後・9/25 など）を書くと自動で設定されます</span>
         </p>
     </form>
 
-    {{-- 集計カード。クリックでそのままフィルタとしても働く --}}
-    <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    {{-- 件数の升目。クリックでそのままフィルタとしても働く --}}
+    <div class="surface mb-3 grid grid-cols-2 divide-x divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 sm:grid-cols-4 sm:divide-y-0 dark:divide-slate-800 dark:border-slate-800">
         <x-stat-card label="すべて" :value="$summary['total']"
                      :href="route('tasks.index')"
                      :active="! $filters['status'] && ! $filters['category'] && ! $filters['overdue']" />
@@ -87,7 +87,8 @@
         残りは「詳細な絞り込み」へ畳む。選択のたびに JS で自動送信し、
         JS 無効でも「適用」で送れる。
     --}}
-    <form action="{{ route('tasks.index') }}" method="GET" data-auto-submit class="card mb-4 p-4">
+    <form action="{{ route('tasks.index') }}" method="GET" data-auto-submit
+          class="surface mb-3 rounded-md border border-slate-200 p-2.5 dark:border-slate-800">
         <div class="flex flex-wrap items-center gap-2">
             <label class="relative min-w-52 flex-1">
                 <span class="sr-only">キーワード検索</span>
@@ -112,7 +113,7 @@
                 <x-icon name="filter" class="size-4" />
                 詳細な絞り込み
                 @if ($foldedCount > 0)
-                    <span class="rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white tabular-nums">{{ $foldedCount }}</span>
+                    <span class="rounded-sm bg-slate-200 px-1.5 font-mono text-xs font-medium text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-200">{{ $foldedCount }}</span>
                 @endif
             </summary>
 
@@ -161,7 +162,7 @@
                         {{-- ラジオなので、同じタグを再度押す代わりに「すべて」で解除する --}}
                         <label class="cursor-pointer">
                             <input type="radio" name="tag" value="" class="peer sr-only" @checked(! $filters['tag'])>
-                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-200 ring-inset transition peer-checked:bg-slate-900 peer-checked:text-white dark:text-slate-400 dark:ring-slate-700 dark:peer-checked:bg-white dark:peer-checked:text-slate-900">
+                            <span class="chip text-slate-500 ring-slate-200 transition peer-checked:bg-slate-900 peer-checked:text-white dark:text-slate-400 dark:ring-slate-700 dark:peer-checked:bg-white dark:peer-checked:text-slate-900">
                                 すべて
                             </span>
                         </label>
@@ -169,8 +170,7 @@
                             <label class="cursor-pointer">
                                 <input type="radio" name="tag" value="{{ $tag->id }}" class="peer sr-only"
                                        @checked($filters['tag'] === $tag->id)>
-                                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition
-                                             opacity-60 grayscale peer-checked:opacity-100 peer-checked:grayscale-0 {{ $tag->color->badgeClasses() }}">
+                                <span class="chip opacity-60 grayscale transition peer-checked:opacity-100 peer-checked:grayscale-0 {{ $tag->color->badgeClasses() }}">
                                     <span class="size-1.5 rounded-full {{ $tag->color->swatchClasses() }}"></span>{{ $tag->name }}
                                 </span>
                             </label>
@@ -190,10 +190,7 @@
                         <input type="hidden" name="category" value="{{ $filters['category']->value }}">
                     @endif
 
-                    <button type="submit"
-                            class="ml-auto rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
-                        適用
-                    </button>
+                    <button type="submit" class="btn-quiet ml-auto">適用</button>
                 </div>
             </div>
         </details>
@@ -204,7 +201,7 @@
                 @foreach ($activeFilters as $filter)
                     {{-- バッジ自体が解除ボタン。1 つずつ外せる --}}
                     <a href="{{ $filter['url'] }}"
-                       class="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pr-1.5 pl-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
+                       class="inline-flex items-center gap-1 rounded-sm bg-slate-100 py-0.5 pr-1 pl-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
                         {{ $filter['label'] }}
                         <x-icon name="close" class="size-3.5 text-slate-400" />
                         <span class="sr-only">この条件を外す</span>
@@ -221,17 +218,17 @@
         @endif
     </form>
 
-    <div class="card overflow-hidden">
+    {{-- 一覧は箱に入れず、上下の罫線で区切られた領域として置く --}}
+    <div class="surface border-y border-slate-200 dark:border-slate-800">
         @if ($tasks->isEmpty())
             <x-empty-state title="該当するタスクがありません"
                            description="条件を変えるか、新しいタスクを追加してみましょう。">
-                <a href="{{ route('tasks.create') }}"
-                   class="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+                <a href="{{ route('tasks.create') }}" class="btn-primary mt-2">
                     <x-icon name="plus" class="size-4" /> タスクを追加
                 </a>
             </x-empty-state>
         @else
-            <ul class="divide-y divide-slate-100 dark:divide-white/5">
+            <ul class="divide-y divide-slate-100 dark:divide-white/10">
                 @foreach ($tasks as $task)
                     <x-task-card :task="$task" />
                 @endforeach
@@ -239,7 +236,7 @@
         @endif
     </div>
 
-    <div class="mt-4">
+    <div class="mt-3">
         {{ $tasks->links() }}
     </div>
 @endsection

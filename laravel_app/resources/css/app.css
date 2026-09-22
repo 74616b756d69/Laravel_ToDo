@@ -10,16 +10,61 @@
 @theme {
     --font-sans: 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 
-    --color-brand-50: oklch(0.97 0.02 265);
-    --color-brand-100: oklch(0.93 0.04 265);
-    --color-brand-200: oklch(0.87 0.07 265);
-    --color-brand-300: oklch(0.79 0.11 265);
-    --color-brand-400: oklch(0.7 0.15 265);
-    --color-brand-500: oklch(0.62 0.19 265);
-    --color-brand-600: oklch(0.55 0.2 265);
-    --color-brand-700: oklch(0.47 0.18 265);
-    --color-brand-800: oklch(0.39 0.14 265);
-    --color-brand-900: oklch(0.31 0.1 265);
+    /*
+       課題キー・日付・数値だけに当てる欧文書体。
+       日本語と同じ書体で数字を出すと、DEMO-100 と本文の見分けが付かなくなる。
+    */
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /*
+       地色は無彩色に寄せる。Tailwind 既定の slate は青みを持っていて、
+       同じく青系のブランド色・ステータス色（sky/violet）と混ざって
+       画面全体がうっすら青く染まる。明度は既定値のまま彩度だけ落とし、
+       いま満たしているコントラスト比を変えずに色味だけ抜いている。
+    */
+    --color-slate-50: oklch(0.985 0.001 250);
+    --color-slate-100: oklch(0.967 0.002 250);
+    --color-slate-200: oklch(0.922 0.003 250);
+    --color-slate-300: oklch(0.871 0.004 250);
+    --color-slate-400: oklch(0.708 0.006 250);
+    --color-slate-500: oklch(0.554 0.007 250);
+    --color-slate-600: oklch(0.446 0.007 250);
+    --color-slate-700: oklch(0.372 0.006 250);
+    --color-slate-800: oklch(0.279 0.005 250);
+    --color-slate-900: oklch(0.208 0.004 250);
+    --color-slate-950: oklch(0.145 0.003 250);
+
+    /*
+       ブランド色は深い青緑（hue 200）。彩度を低く抑えてあるのは、
+       sky（進行中）・emerald（完了）・rose（期限切れ）・amber（優先度中）が
+       すでに意味を持っているため。ブランド色が鮮やかだと、
+       意味を持たない色が一番目立ってしまう。
+       使い道は「主要な CTA」「現在地の線」「フォーカス」に限る。
+    */
+    --color-brand-50: oklch(0.97 0.014 200);
+    --color-brand-100: oklch(0.94 0.025 200);
+    --color-brand-200: oklch(0.88 0.04 200);
+    --color-brand-300: oklch(0.8 0.055 200);
+    --color-brand-400: oklch(0.68 0.07 200);
+    --color-brand-500: oklch(0.58 0.075 200);
+    --color-brand-600: oklch(0.5 0.07 200);
+    --color-brand-700: oklch(0.42 0.06 200);
+    --color-brand-800: oklch(0.34 0.05 200);
+    --color-brand-900: oklch(0.27 0.04 200);
+
+    /*
+       角丸は 2 段階だけ。操作するもの（ボタン・入力・チップ）は 4px、
+       面（カード・メニュー・コードブロック）は 8px。
+       Tailwind の階段を潰して割り当てているので、
+       既存の rounded-* がそのままどちらかに丸め込まれる。
+    */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-xl: 8px;
+    --radius-2xl: 8px;
+    --radius-3xl: 8px;
 }
 
 @layer base {
@@ -29,7 +74,12 @@
     }
 
     body {
-        @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+        /*
+           ライトの地色は白の 1 段下。白い面（ヘッダー・一覧・パネル）との差が
+           出ないと、罫線だけで領域を分ける作りが成立しない。
+           ダークは地が十分に沈んでいるので据え置き。
+        */
+        @apply bg-slate-100 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
     }
 
     :focus-visible {
@@ -47,15 +97,72 @@
 }
 
 @layer components {
+    /*
+       面は「浮いた箱」ではなく「罫線で仕切られた領域」。影は使わず、
+       1px のボーダー 1 本で分ける（影を足すのはメニューとモーダルだけ）。
+    */
+
+    /*
+       罫線で区切るだけの領域（一覧・絞り込みなど）。
+       ライトは白を敷いて地色から持ち上げ、ダークは地のまま罫線だけで分ける。
+    */
+    .surface {
+        @apply bg-white dark:bg-transparent;
+    }
+
     .card {
-        @apply rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
+        @apply rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
     }
 
     .field {
-        @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
-               shadow-sm transition placeholder:text-slate-400
-               focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none
+        @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
+               transition placeholder:text-slate-400
+               focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none
                dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500;
+    }
+
+    /*
+       ボタンは 2 種類だけ。塗るのは画面にひとつの主要動作、
+       それ以外は枠線のみのニュートラルにする。
+    */
+    .btn-primary,
+    .btn-quiet {
+        @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition;
+    }
+
+    .btn-primary {
+        @apply bg-brand-700 text-white hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500;
+    }
+
+    .btn-quiet {
+        @apply border border-slate-300 text-slate-700 hover:bg-slate-100
+               dark:border-slate-700 dark:text-slate-200 dark:hover:bg-white/5;
+    }
+
+    /*
+       ステータス・タグ・種別の印。角丸を丸薬型にしないのは、
+       同じ行に並ぶ数値・キーと同じ矩形のリズムに乗せるため。
+    */
+    .chip {
+        @apply inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset;
+    }
+
+    /*
+       課題キー。この製品でいちばん頻繁に読まれる文字列なので、
+       接頭辞（プロジェクトキー）を落として番号だけを強く出す。
+       一覧・ボード・バックログ・詳細のどこでも同じ表情にする。
+    */
+    .issue-key {
+        @apply inline-flex shrink-0 items-baseline font-mono text-[11px] tracking-wide tabular-nums;
+    }
+
+    /* 接頭辞も読める濃さ（AA）は保ったまま、番号との差だけを付ける */
+    .issue-key .issue-key-prefix {
+        @apply text-slate-500 dark:text-slate-500;
+    }
+
+    .issue-key .issue-key-number {
+        @apply font-medium text-slate-700 dark:text-slate-300;
     }
 
     /*
@@ -190,23 +297,23 @@ form[data-auto-submit='ready'] [data-submit-fallback] {
 /* ---------------------------------------------------------------------------
    グラフの配色
    単色系列は 1 色、優先度は順序尺度なので同一色相の明→暗ランプを使う。
-   いずれもページ背景（ライト #f8fafc / ダーク #020617）に対して
-   明度・彩度・コントラストを検証した値。
+   値はトークンから引く。ページ背景（ライト slate-50 / ダーク slate-950）に対して
+   明度差を確認したうえで、ライトは濃い側・ダークは明るい側を系列色に割り当てている。
 --------------------------------------------------------------------------- */
 .viz {
-    --viz-grid: #e2e8f0;
-    --viz-series: #4f46e5;
-    --viz-ramp-low: #818cf8;
-    --viz-ramp-mid: #4f46e5;
-    --viz-ramp-high: #312e81;
+    --viz-grid: var(--color-slate-200);
+    --viz-series: var(--color-brand-700);
+    --viz-ramp-low: var(--color-brand-300);
+    --viz-ramp-mid: var(--color-brand-500);
+    --viz-ramp-high: var(--color-brand-800);
 }
 
 .dark .viz {
-    --viz-grid: #1d293d;
-    --viz-series: #6366f1;
-    --viz-ramp-low: #c7d2fe;
-    --viz-ramp-mid: #818cf8;
-    --viz-ramp-high: #4f46e5;
+    --viz-grid: var(--color-slate-800);
+    --viz-series: var(--color-brand-400);
+    --viz-ramp-low: var(--color-brand-200);
+    --viz-ramp-mid: var(--color-brand-400);
+    --viz-ramp-high: var(--color-brand-600);
 }
 
 /* ホバー中の棒だけを残して、他をわずかに引かせる */

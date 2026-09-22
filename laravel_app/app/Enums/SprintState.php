@@ -26,9 +26,9 @@ enum SprintState: string
     public function badgeClasses(): string
     {
         return match ($this) {
-            self::Future => 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
-            self::Active => 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30',
-            self::Closed => 'bg-slate-100 text-slate-400 ring-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700',
+            self::Future => 'bg-slate-200 text-slate-700 ring-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+            self::Active => 'bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30',
+            self::Closed => 'bg-slate-200 text-slate-500 ring-slate-300 dark:bg-slate-800 dark:text-slate-500 dark:ring-slate-700',
         };
     }
 
