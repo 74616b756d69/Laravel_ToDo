@@ -36,7 +36,6 @@ class PageRenderTest extends TestCase
         $this->get(route('tasks.show', $task))->assertOk()
             ->assertSee('サンプルタスク')
             ->assertSee('サンプルサブタスク');
-        $this->get(route('tasks.edit', $task))->assertOk()->assertSee('タスクを編集');
         $this->get(route('board'))->assertOk()->assertSee('ボード');
         $this->get(route('dashboard'))->assertOk()->assertSee('分析');
         $this->get(route('tags.index'))->assertOk()->assertSee('サンプルタグ');

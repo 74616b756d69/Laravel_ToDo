@@ -69,16 +69,11 @@ class TagTest extends TestCase
         $tag = Tag::factory()->for($this->user)->create();
         $task = Issue::factory()->forUser($this->user)->create();
 
-        $payload = [
-            'title' => $task->title,
-            'status' => Project::personalFor($this->user)->initialStatus()->id,
-            'priority' => TaskPriority::Low->value,
-        ];
-
-        $this->actingAs($this->user)->put(route('tasks.update', $task), $payload + ['tags' => [$tag->id]]);
+        // 付け替えは詳細画面から。欄ごと空で送れば全部外れる
+        $this->actingAs($this->user)->patch(route('tasks.tags', $task), ['tags' => [$tag->id]]);
         $this->assertTrue($task->fresh()->tags->contains($tag));
 
-        $this->actingAs($this->user)->put(route('tasks.update', $task), $payload);
+        $this->actingAs($this->user)->patch(route('tasks.tags', $task), []);
         $this->assertTrue($task->fresh()->tags->isEmpty());
     }
 

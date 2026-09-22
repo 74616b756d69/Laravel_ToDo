@@ -5,8 +5,10 @@ namespace Tests\Feature\Task;
 use App\Enums\ActivityField;
 use App\Enums\IssueType;
 use App\Enums\ProjectRole;
+use App\Enums\TaskPriority;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\UsesWorkflow;
@@ -278,24 +280,6 @@ class InlineActionTest extends TestCase
         $this->assertSame(IssueType::Task, $task->issue_type);
     }
 
-    public function test_編集フォームから担当者と課題タイプを変えられる(): void
-    {
-        $task = $this->issue(['issue_type' => IssueType::Task]);
-
-        $this->actingAs($this->user)->put(route('tasks.update', $task), [
-            'title' => $task->title,
-            'status' => $task->status_id,
-            'priority' => $task->priority->value,
-            'issue_type' => IssueType::Story->value,
-            'assignee' => '',
-        ])->assertRedirect();
-
-        $task->refresh();
-
-        $this->assertSame(IssueType::Story, $task->issue_type);
-        $this->assertNull($task->assignee_id);
-    }
-
     public function test_詳細画面に担当者と起票者が出る(): void
     {
         $task = $this->issue();
@@ -308,5 +292,156 @@ class InlineActionTest extends TestCase
             ->assertSee('スプリント')
             ->assertSee('ストーリーポイント')
             ->assertSee($this->user->name);
+    }
+
+    // --- その場で編集できる項目 ----------------------------------------------
+
+    public function test_タイトルをその場で書き換えられる(): void
+    {
+        $task = $this->issue(['title' => '古い要約']);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.title', $task), ['title' => '新しい要約'])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertSame('新しい要約', $task->refresh()->title);
+    }
+
+    public function test_空のタイトルでは保存されない(): void
+    {
+        $task = $this->issue(['title' => '古い要約']);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.title', $task), ['title' => ''])
+            ->assertSessionHasErrors('title');
+
+        $this->assertSame('古い要約', $task->refresh()->title);
+    }
+
+    public function test_説明をその場で書き換えられる(): void
+    {
+        $task = $this->issue(['content' => '<p>前の説明</p>']);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.content', $task), ['content' => '<p>あとの説明</p>'])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertStringContainsString('あとの説明', (string) $task->refresh()->content);
+    }
+
+    public function test_説明を空にできる(): void
+    {
+        $task = $this->issue(['content' => '<p>消される説明</p>']);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.content', $task), ['content' => ''])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertNull($task->refresh()->content);
+    }
+
+    public function test_優先度をその場で変えると履歴にも残る(): void
+    {
+        $task = $this->issue(['priority' => TaskPriority::Low]);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.priority', $task), ['priority' => TaskPriority::High->value])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertSame(TaskPriority::High, $task->refresh()->priority);
+        $this->assertTrue($task->activities()->where('field', ActivityField::Priority)->exists());
+    }
+
+    public function test_期限をその場で設定して外せる(): void
+    {
+        $task = $this->issue(['due_date' => null]);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.due-date', $task), ['due_date' => '2026-12-24'])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertSame('2026-12-24', $task->refresh()->due_date->format('Y-m-d'));
+
+        // 空で送れば未設定に戻る
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.due-date', $task), ['due_date' => ''])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertNull($task->refresh()->due_date);
+    }
+
+    public function test_見積りをその場で置き直せる(): void
+    {
+        $task = $this->issue(['story_points' => null]);
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.story-points', $task), ['story_points' => 5])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertSame(5, $task->refresh()->story_points);
+
+        // 負の値はカラム（unsignedSmallInteger）に入らないので、検証で止める
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.story-points', $task), ['story_points' => -1])
+            ->assertSessionHasErrors('story_points');
+
+        $this->assertSame(5, $task->refresh()->story_points);
+    }
+
+    public function test_タグをその場で付け替えられる(): void
+    {
+        $task = $this->issue();
+        $tag = Tag::factory()->for($this->user)->create();
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.tags', $task), ['tags' => [$tag->id]])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertSame([$tag->id], $task->refresh()->tags->pluck('id')->all());
+
+        // 欄ごと空で送れば全部外れる
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.tags', $task), [])
+            ->assertRedirect(route('tasks.show', $task));
+
+        $this->assertTrue($task->refresh()->tags->isEmpty());
+    }
+
+    public function test_他人のタグは付けられない(): void
+    {
+        $task = $this->issue();
+        $othersTag = Tag::factory()->for(User::factory()->create())->create();
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $task))
+            ->patch(route('tasks.tags', $task), ['tags' => [$othersTag->id]])
+            ->assertSessionHasErrors('tags.0');
+
+        $this->assertTrue($task->refresh()->tags->isEmpty());
+    }
+
+    public function test_閲覧しかできない相手はその場の編集も弾かれる(): void
+    {
+        $viewer = User::factory()->create();
+        $this->project->members()->create(['user_id' => $viewer->id, 'role' => ProjectRole::Viewer]);
+
+        $task = $this->issue(['title' => '触らせない']);
+
+        $this->actingAs($viewer)
+            ->patch(route('tasks.title', $task), ['title' => '書き換え'])
+            ->assertForbidden();
+
+        $this->assertSame('触らせない', $task->refresh()->title);
     }
 }

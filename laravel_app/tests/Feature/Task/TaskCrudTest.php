@@ -91,21 +91,11 @@ class TaskCrudTest extends TestCase
             ->assertSessionHasErrors('status');
     }
 
-    public function test_タスクを更新できる(): void
-    {
-        $task = Issue::factory()->forUser($this->user)->create(['title' => '変更前']);
-
-        $this->actingAs($this->user)->put(route('tasks.update', $task), [
-            'title' => '変更後',
-            'content' => null,
-            'status' => $this->statusIdFor($this->user, 'To Do'),
-            'priority' => TaskPriority::Medium->value,
-            'due_date' => null,
-        ])->assertRedirect(route('tasks.show', $task));
-
-        $this->assertSame('変更後', $task->refresh()->title);
-        $this->assertNull($task->completed_at);
-    }
+    /*
+     * 更新のテストはここには無い。
+     * 作ったあとの書き換えは詳細画面の項目ごとのインライン更新なので、
+     * InlineActionTest が項目ごとに見ている。
+     */
 
     public function test_タスクを削除するとソフトデリートされる(): void
     {

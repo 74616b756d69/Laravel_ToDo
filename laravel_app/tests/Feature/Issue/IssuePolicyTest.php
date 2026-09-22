@@ -3,7 +3,6 @@
 namespace Tests\Feature\Issue;
 
 use App\Enums\ProjectRole;
-use App\Enums\TaskPriority;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
@@ -80,11 +79,9 @@ class IssuePolicyTest extends TestCase
 
     public function test_閲覧者は画面上でも更新を拒否される(): void
     {
-        $this->actingAs($this->viewer)->put(route('tasks.update', $this->issue), [
-            'title' => '閲覧者による変更',
-            'status' => $this->project->statuses()->where('name', 'In Progress')->sole()->id,
-            'priority' => TaskPriority::High->value,
-        ])->assertForbidden();
+        $this->actingAs($this->viewer)
+            ->patch(route('tasks.title', $this->issue), ['title' => '閲覧者による変更'])
+            ->assertForbidden();
 
         $this->assertNotSame('閲覧者による変更', $this->issue->refresh()->title);
     }

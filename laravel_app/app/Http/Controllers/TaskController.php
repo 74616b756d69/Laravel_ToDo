@@ -8,7 +8,6 @@ use App\Enums\TaskPriority;
 use App\Http\Requests\Task\TaskRequest;
 use App\Models\Issue;
 use App\Models\Status;
-use App\Services\IssueAssignmentService;
 use App\Services\IssueLinkService;
 use App\Services\WorkflowService;
 use App\Support\IssueTimeline;
@@ -24,7 +23,6 @@ class TaskController extends Controller
     public function __construct(
         private readonly WorkflowService $workflows,
         private readonly IssueLinkService $links,
-        private readonly IssueAssignmentService $assignments,
         private readonly ProjectContext $context,
     ) {}
 
@@ -148,41 +146,21 @@ class TaskController extends Controller
             // 編集フォームへ行かずに動かせるよう、次に取れる遷移と候補を渡す
             'transitions' => $this->workflows->availableFor($task),
             'members' => $task->project->users,
+            // タグはその場で付け替えられる。候補は自分が作ったものだけ。
+            // リレーションのキャッシュに乗せず毎回引くので、描画に要るクエリ数は一定になる
+            'tags' => $request->user()->tags()->get(),
+            // 各項目を「押したら編集」にするか、読むだけにするかの分かれ目
+            'canUpdate' => $request->user()->can('update', $task),
         ]);
     }
 
-    public function edit(Issue $task): View
-    {
-        $this->authorize('update', $task);
-
-        $task->load('tags', 'status', 'assignee', 'project.users');
-
-        return view('tasks.edit', [
-            'task' => $task,
-            'tags' => Auth::user()->tags,
-            // 現在地と、そこから行ける先だけを選べるようにする
-            'statuses' => $this->workflows->availableFor($task)->prepend($task->status),
-            'members' => $task->project->users,
-        ]);
-    }
-
-    public function update(TaskRequest $request, Issue $task): RedirectResponse
-    {
-        $this->authorize('update', $task);
-
-        $task->update($request->taskAttributes());
-        // ステータスと担当者だけは検査を通す。禁止された遷移ならここで例外になる
-        $this->workflows->transition($task, $request->status());
-
-        if ($request->hasAssignee()) {
-            $this->assignments->assign($task, $request->assignee());
-        }
-
-        $task->tags()->sync($request->tagIds());
-
-        return redirect()->route('tasks.show', $task)
-            ->with('status', "「{$task->title}」を更新しました。");
-    }
+    /*
+     * 編集画面は持たない。
+     *
+     * 課題の書き換えは詳細画面のインライン編集（App\Http\Controllers\Task\ の
+     * 各コントローラ）に一本化してある。1 項目を直すために全項目のフォームを
+     * 開かせない、という詳細画面の作りと、入り口を 2 つ持たないため。
+     */
 
     public function destroy(Issue $task): RedirectResponse
     {

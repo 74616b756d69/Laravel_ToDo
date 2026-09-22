@@ -3,7 +3,6 @@
 namespace Tests\Feature\Task;
 
 use App\Enums\ProjectRole;
-use App\Enums\TaskPriority;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
@@ -42,21 +41,12 @@ class TaskAuthorizationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_参加していないプロジェクトの課題は編集画面を開けない(): void
-    {
-        $this->actingAs($this->user)
-            ->get(route('tasks.edit', $this->othersTask))
-            ->assertForbidden();
-    }
-
     public function test_参加していないプロジェクトの課題は更新できない(): void
     {
-        $this->actingAs($this->user)->put(route('tasks.update', $this->othersTask), [
-            'title' => '乗っ取り',
-            // 相手プロジェクトのステータス。認可が先に効くので届かない
-            'status' => $this->othersTask->project->initialStatus()->id,
-            'priority' => TaskPriority::Low->value,
-        ])->assertForbidden();
+        // 書き換えは詳細画面のインライン更新だけなので、その入口で止まることを見る
+        $this->actingAs($this->user)
+            ->patch(route('tasks.title', $this->othersTask), ['title' => '乗っ取り'])
+            ->assertForbidden();
 
         $this->assertNotSame('乗っ取り', $this->othersTask->refresh()->title);
     }
@@ -96,11 +86,9 @@ class TaskAuthorizationTest extends TestCase
             ->assertOk()
             ->assertSee('同僚の課題');
 
-        $this->actingAs($this->user)->put(route('tasks.update', $task), [
-            'title' => '同僚の課題（更新）',
-            'status' => $project->statuses()->where('name', 'In Progress')->sole()->id,
-            'priority' => TaskPriority::High->value,
-        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->user)
+            ->patch(route('tasks.title', $task), ['title' => '同僚の課題（更新）'])
+            ->assertSessionHasNoErrors();
 
         $this->assertSame('同僚の課題（更新）', $task->refresh()->title);
     }

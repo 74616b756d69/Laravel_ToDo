@@ -1,10 +1,13 @@
 @php
     /*
-     * ヘッダーに常時出すのは「行き先」だけに絞る。
+     * ヘッダーは 2 段に分ける。
      *
-     * プロジェクト（切り替え・設定）とタグ・テーマ・ログアウトは、
-     * 日に何度も押すものではないのでメニューへ畳んだ。横に並ぶものが多いほど
-     * 目的のリンクを探す時間が延びるので、常時見えるのは 4 つまでにしている。
+     * 上段は「いま誰が・どのプロジェクトに居るか」と検索、下段は「行き先」。
+     * 役割の違うものを 1 行に詰めると、ナビゲーションが検索窓やアカウントに
+     * 押されて幅が読めなくなるため、段を分けて画面の横幅を取り合わないようにした。
+     *
+     * プロジェクト設定・タグ・テーマ・ログアウトは日に何度も押すものではないので
+     * 引き続きメニューへ畳み、下段に常時見えるのは 4 つまでにしている。
      */
     $navigation = [
         ['route' => 'tasks.index', 'label' => 'タスク', 'active' => request()->routeIs('tasks.*')],
@@ -17,7 +20,12 @@
 @endphp
 
 <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-    <div class="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
+    {{-- 上段：ブランド・プロジェクト・検索・アカウント --}}
+    <div @class([
+        'mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:gap-4 sm:px-6',
+        // 下段があるときだけ薄い区切りを入れる（無いと 2 段が 1 かたまりに見える）
+        'border-b border-slate-100 dark:border-white/5' => auth()->check(),
+    ])>
         <a href="{{ route(auth()->check() ? 'tasks.index' : 'welcome') }}"
            class="shrink-0 text-[15px] font-bold tracking-tight whitespace-nowrap">
             {{ config('app.name') }}
@@ -26,14 +34,19 @@
         @auth
             {{--
                 プロジェクトの切り替え。
-                キーだけを出すのは、「いまどのプロジェクトに居るか」は常に見えている必要がある一方で、
-                長いプロジェクト名をヘッダーに置くと他が押し出されるため。名前はメニューを開けば読める。
+                2 段にして横幅に余裕ができたので、広い画面では名前も並べる。
+                狭い画面ではキーだけに畳む（「いまどこに居るか」はキーで足りる）。
             --}}
             <x-menu align="left" width="w-64">
                 <x-slot:trigger>
                     <span class="sr-only">プロジェクトを切り替える（現在：{{ $currentProject->name }}）</span>
-                    <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-slate-600 dark:bg-white/5 dark:text-slate-300">
-                        {{ $currentProject->key }}
+                    <span aria-hidden="true" class="flex min-w-0 items-center gap-2">
+                        <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                            {{ $currentProject->key }}
+                        </span>
+                        <span class="hidden max-w-40 truncate text-sm text-slate-600 sm:block dark:text-slate-300">
+                            {{ $currentProject->name }}
+                        </span>
                     </span>
                 </x-slot:trigger>
 
@@ -67,34 +80,22 @@
                     </a>
                 @endcan
             </x-menu>
-
-            {{-- 現在地は下線で示す。狭い画面では横スクロールさせる --}}
-            <nav class="-mb-px flex h-full min-w-0 flex-1 items-stretch gap-4 overflow-x-auto sm:gap-5">
-                @foreach ($navigation as $item)
-                    <a href="{{ route($item['route']) }}"
-                       @class([
-                           'flex shrink-0 items-center border-b-2 text-sm whitespace-nowrap',
-                           'border-brand-600 font-medium text-slate-900 dark:border-brand-400 dark:text-white' => $item['active'],
-                           'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' => ! $item['active'],
-                       ])>{{ $item['label'] }}</a>
-                @endforeach
-            </nav>
         @endauth
 
         <div class="ml-auto flex shrink-0 items-center gap-1">
             @auth
                 {{-- 課題キー（PROJ-123）ならその課題へ直行、それ以外はキーワード検索 --}}
-                <form action="{{ route('search') }}" method="GET" class="relative hidden lg:block">
+                <form action="{{ route('search') }}" method="GET" class="relative hidden sm:block">
                     <label for="global-search" class="sr-only">課題を検索</label>
                     <x-icon name="search" class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400" />
                     <input id="global-search" type="search" name="q" value="{{ request()->query('keyword') }}"
                            placeholder="{{ $currentProject->key }}-1 またはキーワード"
-                           class="w-48 rounded-lg border border-slate-200 bg-white py-1.5 pr-2 pl-8 text-sm dark:border-slate-700 dark:bg-slate-900">
+                           class="w-48 rounded-lg border border-slate-200 bg-white py-1.5 pr-2 pl-8 text-sm lg:w-64 dark:border-slate-700 dark:bg-slate-900">
                 </form>
 
                 {{-- 画面が狭いときは検索窓を畳み、一覧の絞り込みへ送る --}}
                 <a href="{{ route('tasks.index') }}" aria-label="課題を検索"
-                   class="grid size-8 place-items-center rounded-md text-slate-400 hover:text-slate-900 lg:hidden dark:hover:text-white">
+                   class="grid size-8 place-items-center rounded-md text-slate-400 hover:text-slate-900 sm:hidden dark:hover:text-white">
                     <x-icon name="search" class="size-5" />
                 </a>
 
@@ -139,4 +140,18 @@
             @endauth
         </div>
     </div>
+
+    @auth
+        {{-- 下段：現在地は下線で示す。狭い画面では横スクロールさせる --}}
+        <nav class="mx-auto -mb-px flex h-11 w-full max-w-5xl items-stretch gap-4 overflow-x-auto px-4 sm:gap-6 sm:px-6">
+            @foreach ($navigation as $item)
+                <a href="{{ route($item['route']) }}"
+                   @class([
+                       'flex shrink-0 items-center border-b-2 text-sm whitespace-nowrap',
+                       'border-brand-600 font-medium text-slate-900 dark:border-brand-400 dark:text-white' => $item['active'],
+                       'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' => ! $item['active'],
+                   ])>{{ $item['label'] }}</a>
+            @endforeach
+        </nav>
+    @endauth
 </header>

@@ -11,6 +11,10 @@
         1 カラムに積むと、担当者やスプリントを見るだけでスクロールが要る。
         課題画面でいちばん多い用件は「誰が何の状態で持っているか」の確認なので、
         それを常に画面内に置く。
+
+        書き換えはこの画面で完結する。値を押せばその場で入力に変わり、
+        保存するとその項目だけが更新される（x-inline-edit）。編集画面へ移動すると
+        直したい 1 項目のために全項目のフォームを読み直すことになる。
     --}}
     <nav aria-label="パンくず" class="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <a href="{{ route('tasks.index') }}"
@@ -42,31 +46,69 @@
                 <div class="px-5 py-5 sm:px-6">
                     {{-- 見出しは課題キーではなく要約。キーはパンくずに常駐している --}}
                     <div class="flex items-start gap-2.5">
-                        <x-issue-type-mark :type="$task->issue_type" class="mt-0.5 size-6" />
-                        <h1 class="text-xl font-bold break-words {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
-                            {{ $task->title }}
-                        </h1>
+                        <x-issue-type-mark :type="$task->issue_type" class="mt-1.5 size-6" />
+
+                        <x-inline-edit class="min-w-0 flex-1" :editable="$canUpdate"
+                                       :action="route('tasks.title', $task)" field="title" label="タイトル"
+                                       trigger-class="-mx-2 items-start px-2 py-1">
+                            <x-slot:display>
+                                <h1 class="min-w-0 flex-1 text-xl font-bold break-words {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
+                                    {{ $task->title }}
+                                </h1>
+                            </x-slot:display>
+
+                            <input name="title" type="text" required maxlength="100" autocomplete="off"
+                                   value="{{ old('title', $task->title) }}"
+                                   class="field text-base font-bold @error('title') border-rose-400 @enderror">
+                            <x-input-error :messages="$errors->get('title')" />
+                        </x-inline-edit>
                     </div>
 
-                    @if ($task->tags->isNotEmpty())
-                        <div class="mt-3 flex flex-wrap items-center gap-1.5 pl-8.5">
-                            @foreach ($task->tags as $tag)
-                                <x-badge :classes="$tag->color->badgeClasses()" :dot="$tag->color->swatchClasses()">
-                                    {{ $tag->name }}
-                                </x-badge>
-                            @endforeach
-                        </div>
+                    {{--
+                        タグも押せば付け替えられる。付いていないときは「タグなし」と置いて
+                        押せる場所を示すが、直せない相手には空の行を見せても仕方がないので畳む。
+                    --}}
+                    @if ($canUpdate || $task->tags->isNotEmpty())
+                    <div class="mt-2 pl-8.5">
+                        <x-inline-edit :editable="$canUpdate" :action="route('tasks.tags', $task)"
+                                       field="tags" label="タグ" trigger-class="-mx-2 flex-wrap px-2 py-1">
+                            <x-slot:display>
+                                @forelse ($task->tags as $tag)
+                                    <x-badge :classes="$tag->color->badgeClasses()" :dot="$tag->color->swatchClasses()">
+                                        {{ $tag->name }}
+                                    </x-badge>
+                                @empty
+                                    <span class="text-xs text-slate-400 dark:text-slate-500">タグなし</span>
+                                @endforelse
+                            </x-slot:display>
+
+                            <x-tag-picker :tags="$tags" :selected="old('tags', $task->tags->pluck('id')->all())" />
+                        </x-inline-edit>
+                    </div>
                     @endif
                 </div>
 
                 <div class="border-t border-slate-100 px-5 py-5 sm:px-6 dark:border-white/5">
-                    <h2 class="mb-3 text-sm font-semibold">説明</h2>
-                    @if ($task->content)
-                        {{-- 保存時に許可タグだけへサニタイズ済みなので、そのまま描画する --}}
-                        <div class="prose-content">{!! \App\Support\RichText::forDisplay($task->content) !!}</div>
-                    @else
-                        <p class="text-sm text-slate-400 dark:text-slate-500">内容は登録されていません。</p>
-                    @endif
+                    <h2 class="mb-2 text-sm font-semibold">説明</h2>
+
+                    <x-inline-edit :editable="$canUpdate" :action="route('tasks.content', $task)"
+                                   field="content" label="説明" trigger-class="-mx-2 items-start px-2 py-1">
+                        <x-slot:display>
+                            <div class="min-w-0 flex-1">
+                                @if ($task->content)
+                                    {{-- 保存時に許可タグだけへサニタイズ済みなので、そのまま描画する --}}
+                                    <div class="prose-content">{!! \App\Support\RichText::forDisplay($task->content) !!}</div>
+                                @else
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">
+                                        {{ $canUpdate ? 'クリックして説明を書く' : '内容は登録されていません。' }}
+                                    </p>
+                                @endif
+                            </div>
+                        </x-slot:display>
+
+                        <x-rich-editor :value="old('content', $task->content)" />
+                        <x-input-error :messages="$errors->get('content')" />
+                    </x-inline-edit>
                 </div>
             </article>
 
@@ -223,24 +265,52 @@
                 </div>
             @endcan
 
-            {{-- 読むだけの項目。変更は編集フォームで行う --}}
+            {{--
+                値を押せばその場で直せる項目。
+                スプリントと起票者だけは読むだけ（移送は SprintService、起票者は不変）。
+            --}}
             <dl class="card divide-y divide-slate-100 text-sm dark:divide-white/5">
-                <div class="flex items-center gap-3 px-4 py-2.5">
-                    <dt class="text-slate-500 dark:text-slate-400">優先度</dt>
-                    <dd class="ml-auto flex items-center gap-1.5 font-medium">
-                        <x-priority-mark :priority="$task->priority" />
-                        {{ $task->priority->label() }}
+                <div class="flex items-start gap-3 px-4 py-2">
+                    <dt class="py-1 text-slate-500 dark:text-slate-400">優先度</dt>
+                    <dd class="ml-auto min-w-0 flex-1">
+                        <x-inline-edit :editable="$canUpdate" :action="route('tasks.priority', $task)"
+                                       field="priority" label="優先度" trigger-class="-mr-2 justify-end py-1 pr-2">
+                            <x-slot:display>
+                                <span class="flex items-center gap-1.5 font-medium">
+                                    <x-priority-mark :priority="$task->priority" />
+                                    {{ $task->priority->label() }}
+                                </span>
+                            </x-slot:display>
+
+                            <select name="priority" class="field px-2 py-1.5 text-sm">
+                                @foreach (\App\Enums\TaskPriority::options() as $value => $label)
+                                    <option value="{{ $value }}"
+                                            @selected(old('priority', $task->priority->value) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('priority')" />
+                        </x-inline-edit>
                     </dd>
                 </div>
 
-                <div class="flex items-center gap-3 px-4 py-2.5">
-                    <dt class="text-slate-500 dark:text-slate-400">期限</dt>
-                    <dd class="ml-auto font-medium">
-                        @if ($task->due_date)
-                            <x-due-date :issue="$task" class="!text-sm" />
-                        @else
-                            <span class="text-slate-400 dark:text-slate-500">未設定</span>
-                        @endif
+                <div class="flex items-start gap-3 px-4 py-2">
+                    <dt class="py-1 text-slate-500 dark:text-slate-400">期限</dt>
+                    <dd class="ml-auto min-w-0 flex-1">
+                        <x-inline-edit :editable="$canUpdate" :action="route('tasks.due-date', $task)"
+                                       field="due_date" label="期限" trigger-class="-mr-2 justify-end py-1 pr-2">
+                            <x-slot:display>
+                                @if ($task->due_date)
+                                    <x-due-date :issue="$task" class="!text-sm font-medium" />
+                                @else
+                                    <span class="text-slate-400 dark:text-slate-500">未設定</span>
+                                @endif
+                            </x-slot:display>
+
+                            {{-- 空にして保存すれば未設定に戻せる --}}
+                            <input name="due_date" type="date" value="{{ old('due_date', $task->due_date?->format('Y-m-d')) }}"
+                                   class="field px-2 py-1.5 text-sm">
+                            <x-input-error :messages="$errors->get('due_date')" />
+                        </x-inline-edit>
                     </dd>
                 </div>
 
@@ -249,9 +319,22 @@
                     <dd class="ml-auto font-medium">{{ $task->sprint?->name ?? 'バックログ' }}</dd>
                 </div>
 
-                <div class="flex items-center gap-3 px-4 py-2.5">
-                    <dt class="text-slate-500 dark:text-slate-400">ストーリーポイント</dt>
-                    <dd class="ml-auto font-medium tabular-nums">{{ $task->story_points ?? '—' }}</dd>
+                <div class="flex items-start gap-3 px-4 py-2">
+                    <dt class="py-1 text-slate-500 dark:text-slate-400">ストーリーポイント</dt>
+                    <dd class="ml-auto min-w-0 flex-1">
+                        <x-inline-edit :editable="$canUpdate" :action="route('tasks.story-points', $task)"
+                                       field="story_points" label="ストーリーポイント"
+                                       trigger-class="-mr-2 justify-end py-1 pr-2">
+                            <x-slot:display>
+                                <span class="font-medium tabular-nums">{{ $task->story_points ?? '—' }}</span>
+                            </x-slot:display>
+
+                            <input name="story_points" type="number" min="0" max="999" step="1" inputmode="numeric"
+                                   value="{{ old('story_points', $task->story_points) }}" placeholder="未設定"
+                                   class="field px-2 py-1.5 text-sm">
+                            <x-input-error :messages="$errors->get('story_points')" />
+                        </x-inline-edit>
+                    </dd>
                 </div>
 
                 <div class="flex items-center gap-3 px-4 py-2.5">
@@ -281,14 +364,11 @@
                 </div>
             </dl>
 
+            {{--
+                編集への入り口は置かない。項目はすべてその場で直せるので、
+                ここに残るのは「その場では済まない操作」＝削除だけ。
+            --}}
             <div class="flex items-center gap-2">
-                @can('update', $task)
-                    <a href="{{ route('tasks.edit', $task) }}"
-                       class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
-                        <x-icon name="pencil" class="size-4" /> 編集
-                    </a>
-                @endcan
-
                 @can('delete', $task)
                     <form action="{{ route('tasks.destroy', $task) }}" method="POST" class="ml-auto"
                           data-confirm="「{{ $task->title }}」を削除します。よろしいですか？">

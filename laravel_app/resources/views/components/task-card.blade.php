@@ -88,11 +88,5 @@
                 {{ $task->status->name }}
             </x-badge>
         </span>
-
-        <a href="{{ route('tasks.edit', $task) }}"
-           aria-label="編集"
-           class="rounded-lg p-1.5 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-white/5 dark:hover:text-white">
-            <x-icon name="pencil" class="size-4" />
-        </a>
     </div>
 </li>

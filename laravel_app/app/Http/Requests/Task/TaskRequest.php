@@ -14,7 +14,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 /**
- * 課題の作成と更新で入力仕様は同じなので 1 クラスに寄せている。
+ * 課題を作るときの入力。
+ *
+ * 作ったあとの書き換えは詳細画面のインライン編集が項目ごとに受けるので、
+ * まとめて検証するのはこの「新規作成」だけになる。
  */
 class TaskRequest extends FormRequest
 {
@@ -27,11 +30,7 @@ class TaskRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $task = $this->route('task');
-
-        return $task === null
-            ? $this->user()->can('create', [Issue::class, $this->project()])
-            : $this->user()->can('update', $task);
+        return $this->user()->can('create', [Issue::class, $this->project()]);
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -46,7 +45,7 @@ class TaskRequest extends FormRequest
                 Rule::exists('statuses', 'id')->where('project_id', $this->project()->id),
             ],
             // 課題タイプと担当者は欄が無い経路（クイック追加など）もあるので sometimes。
-            // 送られてきたときだけ検証し、無ければ既存の値・既定値に任せる
+            // 送られてきたときだけ検証し、無ければ既定値に任せる
             'issue_type' => ['sometimes', Rule::enum(IssueType::class)],
             // 担当者はそのプロジェクトのメンバーだけ。空文字は未割り当て
             'assignee' => [
@@ -80,13 +79,11 @@ class TaskRequest extends FormRequest
     }
 
     /**
-     * この課題が属する（属することになる）プロジェクト。
-     * 更新なら課題のプロジェクト、新規ならいま見ているプロジェクト。
+     * この課題が属することになるプロジェクト。ヘッダーで選ばれているもの。
      */
     public function project(): Project
     {
-        return $this->route('task')?->project
-            ?? app(ProjectContext::class)->current($this->user());
+        return app(ProjectContext::class)->current($this->user());
     }
 
     /**
@@ -100,8 +97,8 @@ class TaskRequest extends FormRequest
     /**
      * 担当者の欄が送られてきたか。
      *
-     * 更新では「空で送られた（＝未割り当てにしたい）」と
-     * 「そもそも欄が無い」を区別する必要がある。
+     * 「空で送られた（＝未割り当てにしたい）」と「そもそも欄が無い」は別物。
+     * 欄を持たない経路（クイック追加）では、既定どおり自分に割り当てる。
      */
     public function hasAssignee(): bool
     {

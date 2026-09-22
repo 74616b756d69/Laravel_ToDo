@@ -18,10 +18,17 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Sprint\SprintController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\Task\AssigneeController;
+use App\Http\Controllers\Task\ContentController;
+use App\Http\Controllers\Task\DueDateController;
 use App\Http\Controllers\Task\IssueTypeController;
+use App\Http\Controllers\Task\PriorityController;
 use App\Http\Controllers\Task\QuickAddController;
+use App\Http\Controllers\Task\StoryPointsController;
 use App\Http\Controllers\Task\SubtaskController;
+// プロジェクト横断のタグ管理（TagController）と名前が並ぶので、課題側は別名で受ける
+use App\Http\Controllers\Task\TagController as IssueTagController;
 use App\Http\Controllers\Task\TaskCompletionController;
+use App\Http\Controllers\Task\TitleController;
 use App\Http\Controllers\Task\TransitionController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -95,14 +102,24 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1')
         ->name('tasks.quick');
 
-    Route::resource('tasks', TaskController::class);
+    // 編集は詳細画面の項目ごとのインライン更新（下の PATCH 群）に一本化したので、
+    // まとめて直すための edit / update は持たない
+    Route::resource('tasks', TaskController::class)->except(['edit', 'update']);
     // 一覧から 1 クリックで完了状態を切り替えるための専用ルート
     Route::patch('tasks/{task}/completion', TaskCompletionController::class)->name('tasks.completion');
 
-    // 詳細画面からのインライン操作。編集フォームを開かずに 1 リクエストで変える
+    // 詳細画面からのインライン操作。
+    // 課題の書き換えはすべてここを通る。値を押せばその場で入力に変わり、
+    // 1 項目の変更が 1 リクエストで閉じる（編集フォームへ移動する経路は持たない）。
     Route::patch('tasks/{task}/transition', TransitionController::class)->name('tasks.transition');
     Route::patch('tasks/{task}/assignee', AssigneeController::class)->name('tasks.assignee');
     Route::patch('tasks/{task}/type', IssueTypeController::class)->name('tasks.type');
+    Route::patch('tasks/{task}/title', TitleController::class)->name('tasks.title');
+    Route::patch('tasks/{task}/content', ContentController::class)->name('tasks.content');
+    Route::patch('tasks/{task}/priority', PriorityController::class)->name('tasks.priority');
+    Route::patch('tasks/{task}/due-date', DueDateController::class)->name('tasks.due-date');
+    Route::patch('tasks/{task}/story-points', StoryPointsController::class)->name('tasks.story-points');
+    Route::patch('tasks/{task}/tags', IssueTagController::class)->name('tasks.tags');
 
     // コメント（課題に従属するのでネストする）。履歴は不変なのでルートを持たない。
     // 投稿はサニタイズ（HTMLPurifier）が重いので、連投に上限を設ける
