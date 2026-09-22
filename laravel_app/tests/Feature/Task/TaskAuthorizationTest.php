@@ -16,6 +16,10 @@ use Tests\TestCase;
  * 移行前は「他人のタスク（user_id 不一致）」を弾いていた。判定の根拠が
  * project_members.role に変わったので、前提を「非メンバー」に置き換えている。
  * 役割ごとの細かい出し分けは IssuePolicyTest を参照。
+ *
+ * 返るのは 403 ではなく 404。URL は課題キー（/browse/ABC-12）なので、
+ * 403 だと「そのキーの課題は在る」と分かってしまい、
+ * 他プロジェクトに何番まで課題があるかを外から数えられる。
  */
 class TaskAuthorizationTest extends TestCase
 {
@@ -38,7 +42,14 @@ class TaskAuthorizationTest extends TestCase
     {
         $this->actingAs($this->user)
             ->get(route('tasks.show', $this->othersTask))
-            ->assertForbidden();
+            ->assertNotFound();
+    }
+
+    public function test_古いidのURLからも辿り着けない(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('tasks.legacy', $this->othersTask->id))
+            ->assertNotFound();
     }
 
     public function test_参加していないプロジェクトの課題は更新できない(): void
@@ -46,7 +57,7 @@ class TaskAuthorizationTest extends TestCase
         // 書き換えは詳細画面のインライン更新だけなので、その入口で止まることを見る
         $this->actingAs($this->user)
             ->patch(route('tasks.title', $this->othersTask), ['title' => '乗っ取り'])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertNotSame('乗っ取り', $this->othersTask->refresh()->title);
     }
@@ -55,7 +66,7 @@ class TaskAuthorizationTest extends TestCase
     {
         $this->actingAs($this->user)
             ->delete(route('tasks.destroy', $this->othersTask))
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertNotSoftDeleted($this->othersTask);
     }
@@ -64,7 +75,7 @@ class TaskAuthorizationTest extends TestCase
     {
         $this->actingAs($this->user)
             ->patch(route('tasks.completion', $this->othersTask))
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     /**

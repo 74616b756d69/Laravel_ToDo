@@ -118,6 +118,19 @@ class CommentTest extends TestCase
         $this->assertTrue($comment->wasEdited());
     }
 
+    public function test_書き直しの失敗はそのコメント専用の袋に入る(): void
+    {
+        // 画面にはコメントが並ぶので、エラーが「どれの話か」を持っていないと
+        // 隣のコメントと投稿フォームにまで一斉に出てしまう
+        $comment = Comment::factory()->for($this->issue)->for($this->user)->create();
+
+        $this->actingAs($this->user)
+            ->from(route('tasks.show', $this->issue))
+            ->put(route('comments.update', [$this->issue, $comment]), ['body' => ''])
+            ->assertSessionHasErrorsIn("comment-{$comment->id}", ['body'])
+            ->assertSessionDoesntHaveErrors('body');
+    }
+
     public function test_自分のコメントを削除できる(): void
     {
         $comment = Comment::factory()->for($this->issue)->for($this->user)->create();
@@ -199,7 +212,7 @@ class CommentTest extends TestCase
 
         $this->actingAs($this->user)
             ->post(route('comments.store', $others), ['body' => '<p>割り込み</p>'])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     // --- タブ ---------------------------------------------------------------
@@ -363,14 +376,16 @@ class CommentTest extends TestCase
      * 権限の無い相手には、検証結果ではなく 403 を返す。
      * 逆順だと、触れない課題の事情が検証エラー越しに漏れる。
      */
-    public function test_権限が無ければ検証より先に403を返す(): void
+    public function test_権限が無ければ検証より先に弾く(): void
     {
+        // プロジェクトの外の人には、課題の存在ごと伏せて 404
         $outsider = User::factory()->create();
 
         $this->actingAs($outsider)
             ->post(route('comments.store', $this->issue), ['body' => ''])
-            ->assertForbidden();
+            ->assertNotFound();
 
+        // メンバーではあるが書けない人には 403。入力の不備は見せない
         $viewer = User::factory()->create();
         $this->project->members()->create(['user_id' => $viewer->id, 'role' => ProjectRole::Viewer]);
 

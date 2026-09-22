@@ -157,6 +157,7 @@
 
     <p class="mt-4 text-xs text-slate-400 dark:text-slate-500">
         ※ ドラッグ＆ドロップには JavaScript が必要です。無効な場合は
-        <a href="{{ route('tasks.index') }}" class="underline">課題一覧</a> の編集画面から変更できます。
+        <a href="{{ route('tasks.index') }}" class="underline">課題一覧</a> から課題を開き、
+        ステータスをその場で選んで変更できます。
     </p>
 @endsection

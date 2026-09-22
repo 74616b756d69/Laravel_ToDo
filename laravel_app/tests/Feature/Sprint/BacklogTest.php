@@ -189,7 +189,7 @@ class BacklogTest extends TestCase
 
         $this->actingAs($this->user)
             ->patchJson(route('backlog.move', $others), ['sprint' => null, 'ids' => [$others->id]])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_参加していないプロジェクトの課題の並び順は書き換えられない(): void

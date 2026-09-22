@@ -20,10 +20,16 @@ class IssueReference
     private const KEY_PATTERN = '/\A([A-Za-z]{2,10})-(\d+)\z/';
 
     /**
-     * 詳細画面の URL。/tasks/123 の形だけを見る。
+     * 詳細画面の URL（/browse/PROJ-123）。
      * 区切り文字に # は使えない（クエリやフラグメントの # と衝突する）。
      */
-    private const URL_PATTERN = '~/tasks/(\d+)(?:[/?#].*)?\z~';
+    private const URL_PATTERN = '~/browse/([A-Za-z]{2,10}-\d+)(?:[/?#].*)?\z~';
+
+    /**
+     * 連番で貼られた古い詳細 URL（/tasks/123）。
+     * 新しく作られることはないが、貼られたものは解決できるようにしておく。
+     */
+    private const LEGACY_URL_PATTERN = '~/tasks/(\d+)(?:[/?#].*)?\z~';
 
     /**
      * 入力が既存課題を指しているように見えるか。
@@ -36,7 +42,8 @@ class IssueReference
         $input = trim($input);
 
         return preg_match(self::KEY_PATTERN, $input) === 1
-            || preg_match(self::URL_PATTERN, $input) === 1;
+            || preg_match(self::URL_PATTERN, $input) === 1
+            || preg_match(self::LEGACY_URL_PATTERN, $input) === 1;
     }
 
     /**
@@ -84,6 +91,11 @@ class IssueReference
     {
         $input = trim($input);
 
+        // URL で貼られたキーは、キーを打たれたのと同じものとして扱う
+        if (preg_match(self::URL_PATTERN, $input, $matches) === 1) {
+            $input = $matches[1];
+        }
+
         if (preg_match(self::KEY_PATTERN, $input, $matches) === 1) {
             // キーの接頭辞がこのプロジェクトのものと一致することも確かめる
             if (Str::upper($matches[1]) !== Str::upper($project->key)) {
@@ -93,7 +105,7 @@ class IssueReference
             return $project->issues()->where('issue_number', (int) $matches[2])->first();
         }
 
-        if (preg_match(self::URL_PATTERN, $input, $matches) === 1) {
+        if (preg_match(self::LEGACY_URL_PATTERN, $input, $matches) === 1) {
             return $project->issues()->whereKey((int) $matches[1])->first();
         }
 

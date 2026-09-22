@@ -153,7 +153,7 @@ class SubIssueTest extends TestCase
 
         $this->actingAs($this->user)
             ->post(route('subtasks.store', $others), ['title' => '割り込み'])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_閲覧者はサブタスクを追加できない(): void

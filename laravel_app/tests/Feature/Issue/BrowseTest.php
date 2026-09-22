@@ -9,7 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * 課題キーでの移動（/browse/PROJ-123）と、ヘッダーの検索窓の振り分け。
+ * 課題詳細の URL（/browse/ABC-12）と、ヘッダーの検索窓の振り分け。
+ *
+ * URL に出るのは連番の id ではなく課題キー。画面でもやりとりでも
+ * 課題を指すのはキーなので、貼られたリンクと会話が同じ言葉で結びつく。
  */
 class BrowseTest extends TestCase
 {
@@ -32,13 +35,21 @@ class BrowseTest extends TestCase
         return Issue::factory()->inProject($this->project, $this->user)->create();
     }
 
-    public function test_課題キーで詳細へ飛べる(): void
+    public function test_詳細のURLは課題キーになる(): void
+    {
+        $task = $this->issue();
+
+        $this->assertSame("/browse/{$task->key()}", '/'.ltrim(parse_url(route('tasks.show', $task), PHP_URL_PATH), '/'));
+    }
+
+    public function test_課題キーで詳細を開ける(): void
     {
         $task = $this->issue();
 
         $this->actingAs($this->user)
-            ->get(route('browse', $task->key()))
-            ->assertRedirect(route('tasks.show', $task));
+            ->get(route('tasks.show', $task))
+            ->assertOk()
+            ->assertSee($task->title);
     }
 
     public function test_課題キーは大文字小文字を問わない(): void
@@ -46,14 +57,15 @@ class BrowseTest extends TestCase
         $task = $this->issue();
 
         $this->actingAs($this->user)
-            ->get(route('browse', 'abc-'.$task->issue_number))
-            ->assertRedirect(route('tasks.show', $task));
+            ->get('/browse/abc-'.$task->issue_number)
+            ->assertOk()
+            ->assertSee($task->title);
     }
 
     public function test_存在しないキーは404(): void
     {
-        $this->actingAs($this->user)->get(route('browse', 'ABC-999'))->assertNotFound();
-        $this->actingAs($this->user)->get(route('browse', 'ZZZ-1'))->assertNotFound();
+        $this->actingAs($this->user)->get('/browse/ABC-999')->assertNotFound();
+        $this->actingAs($this->user)->get('/browse/ZZZ-1')->assertNotFound();
     }
 
     public function test_見えない課題のキーも404(): void
@@ -62,7 +74,7 @@ class BrowseTest extends TestCase
         $task = Issue::factory()->inProject($others)->create();
 
         $this->actingAs($this->user)
-            ->get(route('browse', $task->key()))
+            ->get(route('tasks.show', $task))
             ->assertNotFound();
     }
 
@@ -70,8 +82,27 @@ class BrowseTest extends TestCase
     {
         $task = $this->issue();
 
-        $this->get(route('browse', $task->key()))->assertRedirect(route('login'));
+        $this->get(route('tasks.show', $task))->assertRedirect(route('login'));
     }
+
+    // --- 古い URL ------------------------------------------------------------
+
+    public function test_連番の古いURLはキーのURLへ送られる(): void
+    {
+        $task = $this->issue();
+
+        $this->actingAs($this->user)
+            ->get(route('tasks.legacy', $task->id))
+            ->assertRedirect(route('tasks.show', $task))
+            ->assertStatus(301);
+    }
+
+    public function test_存在しない連番は404(): void
+    {
+        $this->actingAs($this->user)->get('/tasks/999999')->assertNotFound();
+    }
+
+    // --- 検索窓 --------------------------------------------------------------
 
     public function test_検索窓に課題キーを入れると詳細へ直行する(): void
     {
@@ -79,7 +110,7 @@ class BrowseTest extends TestCase
 
         $this->actingAs($this->user)
             ->get(route('search', ['q' => $task->key()]))
-            ->assertRedirect(route('browse', $task->key()));
+            ->assertRedirect(route('tasks.show', $task));
     }
 
     public function test_検索窓のキーワードは一覧の検索へ流れる(): void

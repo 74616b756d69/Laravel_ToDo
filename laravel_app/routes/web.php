@@ -6,9 +6,9 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BacklogController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Issue\BrowseController;
 use App\Http\Controllers\Issue\CommentController;
 use App\Http\Controllers\Issue\IssueLinkController;
+use App\Http\Controllers\Issue\LegacyUrlController;
 use App\Http\Controllers\Project\ProjectMemberController;
 use App\Http\Controllers\Project\ProjectSwitchController;
 use App\Http\Controllers\Project\StatusController;
@@ -54,10 +54,12 @@ Route::middleware('auth')->group(function () {
     // ヘッダーの検索窓。キーなら /browse、それ以外は一覧のキーワード検索へ振り分ける
     Route::get('search', SearchController::class)->name('search');
 
-    // 課題キーで課題を開く（/browse/PROJ-123）。詳細の URL は /tasks/{id} のまま
-    Route::get('browse/{key}', BrowseController::class)
-        ->where('key', '[A-Za-z]{2,10}-[0-9]+')
-        ->name('browse');
+    // 課題詳細。URL は課題キー（/browse/PROJ-123）。
+    // 画面でもやりとりでも課題を指すのはキーなので、URL もそれに合わせる。
+    // id からキーへの解決は Issue::resolveRouteBinding() が受け持つ。
+    Route::get('browse/{task}', [TaskController::class, 'show'])
+        ->where('task', '[A-Za-z]{2,10}-[0-9]+')
+        ->name('tasks.show');
 
     // プロジェクト（Phase 1: 器とメンバーのみ。課題はまだ既存のタスク側にある）
     // 切り替えは projects/{project} に飲み込まれないよう resource より先に置く
@@ -102,9 +104,13 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1')
         ->name('tasks.quick');
 
+    // 詳細（show）は課題キーの URL に出してあるのでここでは作らない。
     // 編集は詳細画面の項目ごとのインライン更新（下の PATCH 群）に一本化したので、
-    // まとめて直すための edit / update は持たない
-    Route::resource('tasks', TaskController::class)->except(['edit', 'update']);
+    // まとめて直すための edit / update も持たない
+    Route::resource('tasks', TaskController::class)->except(['show', 'edit', 'update']);
+
+    // 連番で貼られた古い詳細 URL は、キーの URL へ送る（create などの後に置く）
+    Route::get('tasks/{id}', LegacyUrlController::class)->whereNumber('id')->name('tasks.legacy');
     // 一覧から 1 クリックで完了状態を切り替えるための専用ルート
     Route::patch('tasks/{task}/completion', TaskCompletionController::class)->name('tasks.completion');
 

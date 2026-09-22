@@ -23,7 +23,7 @@ class SearchController extends Controller
         }
 
         if (IssueReference::looksLikeKey($keyword)) {
-            return redirect()->route('browse', $keyword);
+            return redirect()->route('tasks.show', $keyword);
         }
 
         return redirect()->route('tasks.index', ['keyword' => $keyword]);

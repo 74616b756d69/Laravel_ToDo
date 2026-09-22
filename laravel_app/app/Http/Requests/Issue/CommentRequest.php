@@ -22,6 +22,21 @@ class CommentRequest extends FormRequest
             : $this->user()->can('update', $comment);
     }
 
+    /**
+     * 編集のエラーは、そのコメント専用の袋に入れる。
+     *
+     * コメントはどれも入力名が body なので、既定の袋のままだと
+     * 1 つの書き直しの失敗が、画面中のコメントと投稿フォームに一斉に出る。
+     */
+    protected function prepareForValidation(): void
+    {
+        $comment = $this->route('comment');
+
+        if ($comment !== null) {
+            $this->errorBag = "comment-{$comment->id}";
+        }
+    }
+
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {

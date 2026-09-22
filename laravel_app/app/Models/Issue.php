@@ -6,6 +6,7 @@ use App\Enums\IssueType;
 use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
 use App\Observers\IssueObserver;
+use App\Support\IssueReference;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * 課題。
@@ -218,6 +220,38 @@ class Issue extends Model
     public function key(): string
     {
         return "{$this->project->key}-{$this->issue_number}";
+    }
+
+    /**
+     * URL に出す値。連番の id ではなく課題キー（PROJ-123）を使う。
+     *
+     * 課題を指す言葉は画面でもやりとりでも常にキーなので、
+     * URL だけ別の番号（/tasks/99）を名乗ると、貼られたリンクと
+     * 会話の中の「ABC-12」が結びつかない。
+     */
+    public function getRouteKey(): string
+    {
+        return $this->key();
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'key';
+    }
+
+    /**
+     * URL のキーから課題を引く。
+     *
+     * 見える範囲の外は「無い」と同じ扱い（null → 404）。
+     * 403 を返すと、他プロジェクトに何番まで課題があるかが漏れる。
+     */
+    public function resolveRouteBinding($value, $field = null): ?self
+    {
+        $user = Auth::user();
+
+        return $user === null
+            ? null
+            : IssueReference::resolveKeyFor((string) $value, $user);
     }
 
     /**

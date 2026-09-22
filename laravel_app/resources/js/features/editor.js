@@ -90,6 +90,13 @@ export function createEditor(root) {
     }
 
     buttons.forEach((button) => {
+        /*
+         * ツールバーを押しても本文からフォーカスを奪わない。
+         * 奪うと選択範囲が消えるうえ、Safari ではボタンにフォーカスが移らないので
+         * 「入力から離れた」と見なされて自動保存が走ってしまう。
+         */
+        button.addEventListener('mousedown', (event) => event.preventDefault());
+
         button.addEventListener('click', () => {
             if (button.dataset.editorAction === 'link') {
                 setLink(editor);

@@ -63,11 +63,26 @@ if (document.querySelector('[data-backlog]')) {
  * その場で編集する欄（x-inline-edit）の増補。
  *
  * 開閉は details なので JS 無しでも動く。ここで足すのは、
- * 紙の上では得られない 3 つだけ:
+ * 紙の上では得られない 4 つだけ:
+ *  - マウスでは 1 クリックで開かず、ダブルクリックで開く
  *  - 開いたら入力へフォーカスを移す（押した直後に打ち始められる）
- *  - Escape とキャンセルで閉じ、入力を元に戻す
- *  - 複数行の入力でも Ctrl / ⌘ + Enter で保存できる
+ *  - 入力から離れたら保存する（保存ボタンを置かない代わり）
+ *  - Escape で閉じて入力を元に戻す / Ctrl・⌘ + Enter でその場で保存する
  */
+
+/*
+ * 開いた時点の中身。離れたときに「本当に変わったのか」を見るために取る。
+ * 変わっていないのに送ると、更新日時と履歴だけが増えてしまう。
+ */
+const inlineEditInitial = new WeakMap();
+
+function inlineEditValues(form) {
+    // _token と _method は毎回同じなので、比べる意味がない
+    const entries = [...new FormData(form)].filter(([name]) => name !== '_token' && name !== '_method');
+
+    return JSON.stringify(entries);
+}
+
 function closeInlineEdit(details) {
     const form = details.querySelector('[data-inline-form]');
 
@@ -84,11 +99,34 @@ function closeInlineEdit(details) {
     details.querySelector('summary')?.focus();
 }
 
+function saveInlineEdit(details) {
+    const form = details.querySelector('[data-inline-form]');
+
+    if (!form) {
+        return;
+    }
+
+    // 触っただけで閉じたときは、送らずに畳む
+    if (inlineEditValues(form) === inlineEditInitial.get(form)) {
+        details.open = false;
+
+        return;
+    }
+
+    form.requestSubmit();
+}
+
 document.addEventListener('toggle', (event) => {
     const details = event.target;
 
     if (!details.matches?.('[data-inline-edit]') || !details.open) {
         return;
+    }
+
+    const form = details.querySelector('[data-inline-form]');
+
+    if (form) {
+        inlineEditInitial.set(form, inlineEditValues(form));
     }
 
     // リッチエディタは自分でフォーカスを受け取るので、素の入力だけを見る
@@ -98,12 +136,73 @@ document.addEventListener('toggle', (event) => {
     field?.select?.();
 }, true);
 
+/*
+ * マウスの 1 クリックでは開かない。
+ *
+ * 表示のままで文字を選んだりリンクを押したりする方が、直すより多い。
+ * 1 クリックで入力に変わると、選ぼうとしただけで編集が始まってしまう。
+ * ここで既定の開閉を止め、dblclick で開く。開いている間も止めるので、
+ * 入力中に表示部分を押しても閉じない（閉じるのは保存と Escape）。
+ *
+ * event.detail が 0 のクリックはキーボード（Enter / Space）から来たもの。
+ * こちらは details の既定どおり開かせる。ダブルクリックの代わりが要る。
+ */
 document.addEventListener('click', (event) => {
-    const cancel = event.target.closest('[data-inline-cancel]');
+    const summary = event.target.closest('summary');
 
-    if (cancel) {
-        closeInlineEdit(cancel.closest('[data-inline-edit]'));
+    if (summary?.parentElement?.matches('[data-inline-edit]') && event.detail > 0) {
+        event.preventDefault();
     }
+});
+
+document.addEventListener('dblclick', (event) => {
+    const summary = event.target.closest('summary');
+    const details = summary?.parentElement;
+
+    if (!details?.matches('[data-inline-edit]') || details.open) {
+        return;
+    }
+
+    /*
+     * ダブルクリックで選ばれた文字が入力に残ると、次に打った字で消える。
+     * 開く前に選択を外しておく。
+     */
+    window.getSelection()?.removeAllRanges();
+    details.open = true;
+});
+
+/*
+ * 入力から離れたら保存する。
+ *
+ * 保存ボタンを置かない代わりの動き。ひとつ直して次の項目へ進むとき、
+ * いちいち保存を押しに戻らずに済む。
+ *
+ * focusout の時点では次のフォーカス先がまだ決まっていないので、
+ * 1 周待ってから activeElement を見る。同じ欄の中（別の入力、
+ * エディタのツールバー、タグのチップ）へ移っただけなら、まだ編集中。
+ */
+document.addEventListener('focusout', (event) => {
+    const details = event.target.closest?.('[data-inline-edit][open]');
+
+    if (!details) {
+        return;
+    }
+
+    setTimeout(() => {
+        if (!details.open || details.contains(document.activeElement)) {
+            return;
+        }
+
+        /*
+         * 画面そのものから離れた（タブやウィンドウの切り替え）ときは送らない。
+         * 戻ってきたら続きを書くつもりかもしれず、書きかけで保存されると困る。
+         */
+        if (!document.hasFocus()) {
+            return;
+        }
+
+        saveInlineEdit(details);
+    });
 });
 
 document.addEventListener('keydown', (event) => {
@@ -120,7 +219,7 @@ document.addEventListener('keydown', (event) => {
     }
 
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-        details.querySelector('[data-inline-form]')?.requestSubmit();
+        saveInlineEdit(details);
     }
 });
 

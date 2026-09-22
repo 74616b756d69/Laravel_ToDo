@@ -345,16 +345,23 @@ class IssueLinkTest extends TestCase
             ->post(route('links.store', $others), [
                 'target' => 'X-1', 'type' => IssueLinkType::Relates->value,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
-    public function test_権限が無ければ検証より先に403を返す(): void
+    public function test_権限が無ければ検証より先に弾く(): void
     {
-        $outsider = User::factory()->create();
+        // メンバーではあるが触れない人には 403。入力の不備は見せない
+        $viewer = User::factory()->create();
+        $this->project->members()->create(['user_id' => $viewer->id, 'role' => ProjectRole::Viewer]);
 
-        $this->actingAs($outsider)
+        $this->actingAs($viewer)
             ->post(route('links.store', $this->source), ['target' => '', 'type' => 'unknown'])
             ->assertForbidden();
+
+        // プロジェクトの外の人には、課題の存在ごと伏せて 404
+        $this->actingAs(User::factory()->create())
+            ->post(route('links.store', $this->source), ['target' => '', 'type' => 'unknown'])
+            ->assertNotFound();
     }
 
     // --- 画面 -----------------------------------------------------------------

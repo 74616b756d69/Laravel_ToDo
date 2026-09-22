@@ -151,7 +151,7 @@ class BoardTest extends TestCase
                 'status' => $this->named('Done')->id,
                 'ids' => [$others->id],
             ])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_存在しないステータスへは移動できない(): void
