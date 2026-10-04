@@ -27,6 +27,6 @@ class RegisteredUserController extends Controller
         $request->session()->regenerate();
 
         return redirect()->route('tasks.index')
-            ->with('status', 'ようこそ、'.$user->name.' さん。さっそくタスクを追加しましょう。');
+            ->with('status', 'ようこそ、'.$user->name.' さん。さっそく課題を追加しましょう。');
     }
 }

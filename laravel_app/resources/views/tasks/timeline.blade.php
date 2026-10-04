@@ -40,7 +40,7 @@
 
                 <div class="flex justify-end">
                     <button type="submit"
-                            class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
+                            class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
                         <x-icon name="check" class="size-4" /> コメントする
                     </button>
                 </div>

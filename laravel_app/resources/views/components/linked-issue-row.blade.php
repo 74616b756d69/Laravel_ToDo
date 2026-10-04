@@ -23,7 +23,7 @@
         {{ $issue->title }}
     </a>
 
-    <x-badge :classes="$issue->status->badgeClasses()">{{ $issue->status->name }}</x-badge>
+    <x-status-lozenge :status="$issue->status" />
 
     @if ($issue->assignee)
         <span title="担当: {{ $issue->assignee->name }}"

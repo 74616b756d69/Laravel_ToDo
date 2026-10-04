@@ -4,10 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'タスク') | {{ config('app.name') }}</title>
+    <title>@yield('title', '課題') | {{ config('app.name') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500|noto-sans-jp:400,500,700" rel="stylesheet">
+    {{-- swap: フォントの読み込みを待たずに代替書体で描く（待つと読み込み中に日本語が消える） --}}
+    <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500|noto-sans-jp:400,500,700&display=swap" rel="stylesheet">
 
     {{-- 描画前にテーマを当てて、ダークモード時のちらつきを防ぐ --}}
     <script>
@@ -27,7 +28,7 @@
 
     @include('partials.header')
 
-    <main id="main" class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+    <main id="main" class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
         <x-flash />
         @yield('content')
     </main>

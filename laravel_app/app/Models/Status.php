@@ -58,6 +58,11 @@ class Status extends Model
         return $this->category->badgeClasses();
     }
 
+    public function lozengeClasses(): string
+    {
+        return $this->category->lozengeClasses();
+    }
+
     public function dotClasses(): string
     {
         return $this->category->dotClasses();

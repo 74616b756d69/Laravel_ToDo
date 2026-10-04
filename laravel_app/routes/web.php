@@ -35,7 +35,8 @@ use App\Http\Controllers\Task\TransitionController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('welcome');
+// ログイン済みならトップは飛ばして課題一覧へ。紹介ページを見せ続ける理由がない
+Route::get('/', fn () => auth()->check() ? redirect()->route('tasks.index') : view('welcome'))->name('welcome');
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])->name('register');

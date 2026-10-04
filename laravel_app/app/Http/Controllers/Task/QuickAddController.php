@@ -41,7 +41,7 @@ class QuickAddController extends Controller
         // 記法だけでタイトルが残らなかった場合は作らずに知らせる
         if (! $parsed->hasTitle()) {
             return back()->withInput()->withErrors([
-                'quick' => 'タスクの内容を入力してください。',
+                'quick' => '課題の内容を入力してください。',
             ]);
         }
 

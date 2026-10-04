@@ -148,6 +148,14 @@
     }
 
     /*
+       ステータスのロゼンジ。枠線は付けず、塗りと文字の濃さだけで立たせる。
+       英字は大文字にして字間を少し開け、本文の文字と別物に見せる。
+    */
+    .lozenge {
+        @apply inline-flex max-w-full shrink-0 items-center truncate rounded-sm px-1.5 py-0.5 text-[11px] leading-4 font-bold tracking-wide whitespace-nowrap uppercase;
+    }
+
+    /*
        課題キー。この製品でいちばん頻繁に読まれる文字列なので、
        接頭辞（プロジェクトキー）を落として番号だけを強く出す。
        一覧・ボード・バックログ・詳細のどこでも同じ表情にする。

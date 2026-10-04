@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'タスク作成')
+@section('title', '課題を作成')
 
 @section('content')
-    <x-page-heading title="タスクを作成" :back="route('tasks.index')" back-label="一覧に戻る" />
+    <x-page-heading title="課題を作成" :back="route('tasks.index')" back-label="一覧に戻る" />
 
     {{--
         課題を作る唯一のフォーム。
@@ -94,7 +94,7 @@
                 キャンセル
             </a>
             <button type="submit"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
                 <x-icon name="check" class="size-4" /> 追加する
             </button>
         </div>

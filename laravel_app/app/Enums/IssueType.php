@@ -44,11 +44,9 @@ enum IssueType: string
     public function iconClasses(): string
     {
         return match ($this) {
-            self::Epic => 'text-violet-600 dark:text-violet-400',
-            self::Story => 'text-emerald-600 dark:text-emerald-400',
-            self::Task => 'text-sky-600 dark:text-sky-400',
+            // 色を持つのはバグだけ。ほかは形で見分ける（行の色をステータスに譲るため）
             self::Bug => 'text-rose-600 dark:text-rose-400',
-            self::Subtask => 'text-slate-400 dark:text-slate-500',
+            default => 'text-slate-500 dark:text-slate-400',
         };
     }
 

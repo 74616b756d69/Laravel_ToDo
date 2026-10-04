@@ -1,4 +1,4 @@
-# ✅ Laravel ToDo
+# Tracklet
 
 > Laravel 12 / Blade / Tailwind CSS v4 で作った、チーム向けの課題管理 Web アプリケーション（最小限の Jira クローン）
 
@@ -6,7 +6,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.3-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-516_passed-3FB950?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-517_passed-3FB950?style=flat-square)
 
 ---
 
@@ -61,7 +61,7 @@
 | エディタ | Tiptap v3（ProseMirror）+ HTMLPurifier によるサーバー側サニタイズ |
 | ドラッグ&ドロップ | SortableJS |
 | データベース | MySQL 8.3（ローカル開発・テストは SQLite） |
-| テスト | PHPUnit 11（Feature 450 件 / Unit 66 件） |
+| テスト | PHPUnit 11（Feature 451 件 / Unit 66 件） |
 | 品質管理 | Laravel Pint / GitHub Actions |
 | 非同期処理 | Laravel Queue（database ドライバ）。通知メールはキュー経由で送信 |
 | 実行環境 | Docker / Docker Compose |
@@ -229,7 +229,19 @@ protected function content(): Attribute
 - 重い依存（Tiptap / SortableJS）は**動的 import** で必要なページだけ読み込む
   （初期バンドル 56KB / エディタ 381KB / ボード・バックログ 37KB に分割）
 
-### 13. グラフは配色まで根拠を持たせる
+### 13. 色は「意味のあるもの」にだけ使う
+1 行に色が並びすぎると、注意すべき色が埋もれます。そこで色を持たせるものを絞りました。
+
+| 色を持つ | 色を持たない（灰色） |
+|---|---|
+| ステータス（未着手=灰 / 進行中=青 / 完了=緑。Jira と同じロゼンジ） | タグ（色はタグ管理と絞り込みでだけ使う） |
+| 期限切れ・期限間近 | 担当者のアイコン |
+| 優先度「高」 | 優先度「中」「低」（形で見分ける） |
+| 課題タイプ「バグ」 | ほかの課題タイプ（形で見分ける） |
+
+一覧とバックログは右側を固定幅の列にして、期限・見積り・担当者・ステータスがどの行でも同じ位置に来るようにしています。
+
+### 14. グラフは配色まで根拠を持たせる
 ダッシュボードのグラフは外部ライブラリを使わず、サーバー側で組み立てた **インライン SVG** です。
 
 - 日別の完了数は**単一系列**なので 1 色（凡例は不要、タイトルが系列名を兼ねる）
@@ -247,7 +259,7 @@ php artisan test
 ```
 
 ```
-Tests:  2 skipped, 516 passed (1421 assertions)
+Tests:  2 skipped, 517 passed (1423 assertions)
 ```
 
 スキップの 2 件は、課題番号の並行採番テストのうち `pcntl` 拡張や MySQL が必要なものです（環境が揃えば実行されます）。

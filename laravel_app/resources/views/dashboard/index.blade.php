@@ -20,7 +20,7 @@
 @endphp
 
 @section('content')
-    <h1 class="text-2xl font-bold tracking-tight">分析</h1>
+    <h1 class="text-lg font-semibold tracking-tight">分析</h1>
 
     {{--
         主要な数字は箱に入れず、1 本の帯として見せる。
@@ -141,7 +141,7 @@
 
         @if ($trend->sum('count') === 0)
             <p class="mt-6 border-t border-slate-200 py-12 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                まだ完了したタスクがありません。
+                まだ完了した課題がありません。
             </p>
         @else
             <svg viewBox="0 0 {{ $width }} {{ $height }}" class="mt-3 w-full" role="img"
@@ -196,10 +196,10 @@
 
             @if ($openTotal === 0)
                 <p class="mt-3 border-t border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                    未完了のタスクはありません。
+                    未完了の課題はありません。
                 </p>
             @else
-                <svg viewBox="0 0 560 20" class="mt-3 w-full" role="img" aria-label="未完了タスクの優先度別内訳">
+                <svg viewBox="0 0 560 20" class="mt-3 w-full" role="img" aria-label="未完了の課題の優先度別内訳">
                     {{-- 外周だけを丸め、内側の区切りは 2px の隙間で表す --}}
                     <clipPath id="stack-clip"><rect x="0" y="0" width="560" height="20" rx="4" /></clipPath>
                     <g clip-path="url(#stack-clip)">
@@ -240,11 +240,11 @@
 
         {{-- 期限が近いタスク --}}
         <section>
-            <h2 class="text-sm font-semibold">対応が必要なタスク</h2>
+            <h2 class="text-sm font-semibold">対応が必要な課題</h2>
 
             @if ($upcoming->isEmpty())
                 <p class="mt-3 border-t border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                    期限が迫っているタスクはありません。
+                    期限が迫っている課題はありません。
                 </p>
             @else
                 <ul class="mt-3 divide-y divide-slate-100 dark:divide-slate-800">

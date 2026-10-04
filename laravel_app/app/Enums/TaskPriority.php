@@ -45,9 +45,10 @@ enum TaskPriority: string
     public function iconClasses(): string
     {
         return match ($this) {
+            // 色は「高」だけ。中・低は形（横棒 / 下向き）で見分ければ足りる
             self::High => 'text-rose-500',
-            self::Medium => 'text-amber-500',
-            self::Low => 'text-slate-400',
+            self::Medium => 'text-slate-400 dark:text-slate-500',
+            self::Low => 'text-slate-300 dark:text-slate-600',
         };
     }
 

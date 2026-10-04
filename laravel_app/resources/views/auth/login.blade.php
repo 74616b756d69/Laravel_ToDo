@@ -2,7 +2,7 @@
 
 @section('title', 'ログイン')
 @section('heading', 'おかえりなさい')
-@section('lead', 'アカウントにログインしてタスクを管理しましょう。')
+@section('lead', 'チームの課題とスプリントを、ひとつの場所で。')
 
 @section('content')
     @if (config('demo.enabled'))
@@ -13,13 +13,13 @@
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-brand-900 dark:text-brand-100">はじめての方へ</p>
                     <p class="mt-0.5 text-xs text-brand-800/80 dark:text-brand-200/80">
-                        タスク100件入りのデモアカウントで、登録せずにすべての機能を試せます。
+                        課題100件・スプリント入りのデモアカウントで、登録せずにすべての機能を試せます。
                     </p>
 
                     <form action="{{ route('login.demo') }}" method="POST" class="mt-3">
                         @csrf
                         <button type="submit"
-                                class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+                                class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">
                             デモアカウントでログイン
                         </button>
                     </form>
@@ -64,7 +64,7 @@
         </label>
 
         <button type="submit"
-                class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+                class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700">
             ログイン
         </button>
     </form>

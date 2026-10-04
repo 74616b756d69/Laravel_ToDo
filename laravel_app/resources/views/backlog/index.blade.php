@@ -5,7 +5,7 @@
 @section('content')
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">バックログ</h1>
+            <h1 class="text-lg font-semibold tracking-tight">バックログ</h1>
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-slate-600 dark:bg-white/5 dark:text-slate-300">
                     {{ $project->key }}
@@ -16,7 +16,7 @@
 
         @if ($canManage)
             <details class="relative">
-                <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
+                <summary class="btn-primary cursor-pointer list-none">
                     <x-icon name="plus" class="size-4" /> スプリントを作成
                 </summary>
 
@@ -53,7 +53,7 @@
                     <x-input-error :messages="$errors->get('end_date')" />
 
                     <button type="submit"
-                            class="w-full rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700">
+                            class="btn-primary w-full">
                         作成
                     </button>
                 </form>
@@ -75,13 +75,13 @@
         @foreach ($sprints as $row)
             @php($sprint = $row['sprint'])
             <section class="card overflow-hidden">
-                <header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
+                <header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
                     <x-badge :classes="$sprint->state->badgeClasses()" :dot="$sprint->state->dotClasses()">
                         {{ $sprint->state->label() }}
                     </x-badge>
 
                     <div class="min-w-0">
-                        <p class="truncate font-medium">{{ $sprint->name }}</p>
+                        <p class="truncate text-sm font-semibold">{{ $sprint->name }}</p>
                         @if ($sprint->goal)
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $sprint->goal }}</p>
                         @endif
@@ -105,13 +105,13 @@
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit"
-                                        class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-white/5">
+                                        class="btn-quiet px-2.5 py-1 text-xs">
                                     開始
                                 </button>
                             </form>
                         @elseif ($sprint->isActive())
                             <a href="{{ route('sprints.complete', $sprint) }}"
-                               class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10">
+                               class="btn-quiet px-2.5 py-1 text-xs">
                                 完了する
                             </a>
                         @endif
@@ -120,13 +120,13 @@
 
                 {{-- data-sprint の値が移動先になる --}}
                 <ul data-sprint="{{ $sprint->id }}" data-sprint-name="{{ $sprint->name }}"
-                    class="min-h-20 space-y-2 p-3">
+                    class="min-h-14 divide-y divide-slate-100 dark:divide-white/5">
                     @foreach ($row['issues'] as $issue)
                         @include('backlog.card', ['issue' => $issue])
                     @endforeach
 
                     <li data-lane-empty
-                        class="{{ $row['issues']->isEmpty() ? '' : 'hidden' }} rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                        class="{{ $row['issues']->isEmpty() ? '' : 'hidden' }} px-4 py-5 text-center text-xs text-slate-400 dark:text-slate-500">
                         ここに課題をドロップ
                     </li>
                 </ul>
@@ -135,21 +135,21 @@
 
         {{-- 下段: バックログ --}}
         <section class="card overflow-hidden">
-            <header class="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-white/5">
-                <h2 class="font-medium">バックログ</h2>
+            <header class="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
+                <h2 class="text-sm font-semibold">バックログ</h2>
                 <span class="text-xs text-slate-500 dark:text-slate-400">まだスプリントに入れていない課題</span>
                 <span class="ml-auto text-xs font-medium text-slate-500 tabular-nums dark:text-slate-400">
                     <span data-sprint-count="backlog">{{ $backlog->count() }}</span> 件
                 </span>
             </header>
 
-            <ul data-sprint="" data-sprint-name="バックログ" class="min-h-20 space-y-2 p-3">
+            <ul data-sprint="" data-sprint-name="バックログ" class="min-h-14 divide-y divide-slate-100 dark:divide-white/5">
                 @foreach ($backlog as $issue)
                     @include('backlog.card', ['issue' => $issue])
                 @endforeach
 
                 <li data-lane-empty
-                    class="{{ $backlog->isEmpty() ? '' : 'hidden' }} rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                    class="{{ $backlog->isEmpty() ? '' : 'hidden' }} px-4 py-5 text-center text-xs text-slate-400 dark:text-slate-500">
                     バックログは空です
                 </li>
             </ul>

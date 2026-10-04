@@ -10,7 +10,7 @@
      * 引き続きメニューへ畳み、下段に常時見えるのは 4 つまでにしている。
      */
     $navigation = [
-        ['route' => 'tasks.index', 'label' => 'タスク', 'active' => request()->routeIs('tasks.*')],
+        ['route' => 'tasks.index', 'label' => '課題', 'active' => request()->routeIs('tasks.*')],
         ['route' => 'board', 'label' => 'ボード', 'active' => request()->routeIs('board')],
         ['route' => 'backlog', 'label' => 'バックログ', 'active' => request()->routeIs('backlog') || request()->routeIs('sprints.*')],
         ['route' => 'dashboard', 'label' => '分析', 'active' => request()->routeIs('dashboard')],
@@ -22,7 +22,7 @@
 <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
     {{-- 上段：ブランド・プロジェクト・検索・アカウント --}}
     <div @class([
-        'mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:gap-4 sm:px-6',
+        'mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-4 sm:gap-4 sm:px-6',
         // 下段があるときだけ薄い区切りを入れる（無いと 2 段が 1 かたまりに見える）
         'border-b border-slate-100 dark:border-white/5' => auth()->check(),
     ])>
@@ -160,7 +160,7 @@
 
     @auth
         {{-- 下段：現在地は下線で示す。狭い画面では横スクロールさせる --}}
-        <nav class="mx-auto -mb-px flex h-11 w-full max-w-5xl items-stretch gap-4 overflow-x-auto px-4 sm:gap-6 sm:px-6">
+        <nav class="mx-auto -mb-px flex h-11 w-full max-w-7xl items-stretch gap-4 overflow-x-auto px-4 sm:gap-6 sm:px-6">
             @foreach ($navigation as $item)
                 <a href="{{ route($item['route']) }}"
                    @class([

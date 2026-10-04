@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'タスク一覧')
+@section('title', '課題')
 
 @section('content')
     {{-- 見出しは大きくせず、件数を同じ行に置いて 1 行に収める --}}
     <div class="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 class="text-base font-semibold tracking-tight">タスク一覧</h1>
+        <h1 class="text-lg font-semibold tracking-tight">課題</h1>
         <p class="text-xs text-slate-500 dark:text-slate-400">
             全 <span class="font-mono tabular-nums">{{ $summary['total'] }}</span> 件のうち
             <span class="font-mono tabular-nums">{{ $tasks->total() }}</span> 件を表示しています。
@@ -221,10 +221,10 @@
     {{-- 一覧は箱に入れず、上下の罫線で区切られた領域として置く --}}
     <div class="surface border-y border-slate-200 dark:border-slate-800">
         @if ($tasks->isEmpty())
-            <x-empty-state title="該当するタスクがありません"
-                           description="条件を変えるか、新しいタスクを追加してみましょう。">
+            <x-empty-state title="該当する課題がありません"
+                           description="条件を変えるか、新しい課題を追加してみましょう。">
                 <a href="{{ route('tasks.create') }}" class="btn-primary mt-2">
-                    <x-icon name="plus" class="size-4" /> タスクを追加
+                    <x-icon name="plus" class="size-4" /> 課題を追加
                 </a>
             </x-empty-state>
         @else

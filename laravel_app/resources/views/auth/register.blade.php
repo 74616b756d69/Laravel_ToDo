@@ -2,7 +2,7 @@
 
 @section('title', '新規登録')
 @section('heading', 'アカウントを作成')
-@section('lead', '30秒で登録完了。すぐにタスク管理を始められます。')
+@section('lead', '30秒で登録完了。個人プロジェクトがすぐに使えます。')
 
 @section('content')
     <form action="{{ route('register') }}" method="POST" class="space-y-4">
@@ -39,7 +39,7 @@
         </div>
 
         <button type="submit"
-                class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+                class="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700">
             登録する
         </button>
     </form>

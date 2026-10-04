@@ -34,7 +34,7 @@
         {{ $subtask->title }}
     </a>
 
-    <x-badge :classes="$subtask->status->badgeClasses()">{{ $subtask->status->name }}</x-badge>
+    <x-status-lozenge :status="$subtask->status" />
 
     {{-- 担当者は頭文字だけ。名前を並べると行が長くなりすぎる --}}
     @if ($subtask->assignee)

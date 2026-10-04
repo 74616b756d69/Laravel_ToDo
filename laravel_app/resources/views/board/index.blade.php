@@ -5,7 +5,7 @@
 @section('content')
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">ボード</h1>
+            <h1 class="text-lg font-semibold tracking-tight">ボード</h1>
             <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-slate-600 dark:bg-white/5 dark:text-slate-300">
                     {{ $project->key }}
@@ -34,45 +34,34 @@
          class="grid gap-3 md:h-[calc(100vh-15rem)] md:min-h-96 md:grid-cols-[repeat(var(--lane-count),minmax(0,1fr))]">
         @foreach ($lanes as $lane)
             @php($key = $lane['status']->id)
-            <section class="card flex max-h-[70vh] min-h-0 flex-col overflow-hidden md:max-h-none">
+            <section class="flex max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-lg bg-slate-200/60 md:max-h-none dark:bg-white/[0.03]">
                 {{--
-                    レーンの頭にカテゴリ色の帯を引く。レーンが 4 本以上になると
-                    どこまでが「進行中」なのかが名前だけでは追えなくなるため、
-                    色で塊が見えるようにしている。
+                    レーンは色で塗り分けない（Jira と同じく灰色の列）。
+                    状態の色はカードの外ではなく、詳細や一覧のロゼンジに任せる。
                 --}}
-                <div class="h-1 shrink-0 {{ $lane['status']->dotClasses() }}"></div>
-                <header class="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
-                    <h2 class="text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300">
+                <header class="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1">
+                    <h2 class="truncate text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
                         {{ $lane['status']->name }}
                     </h2>
-                    <span class="ml-auto grid min-w-6 place-items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300"
+                    <span class="font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400"
                           data-lane-count="{{ $key }}">{{ $lane['tasks']->count() }}</span>
                 </header>
 
                 {{-- data-lane の値がドロップ先のステータスになる --}}
                 <ul data-lane="{{ $key }}" data-lane-name="{{ $lane['status']->name }}"
-                    class="flex min-h-32 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-3">
+                    class="flex min-h-32 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain p-2">
                     @foreach ($lane['tasks'] as $task)
                         <li id="task-{{ $task->id }}" data-task-id="{{ $task->id }}"
                             data-move-url="{{ route('board.move', $task) }}"
-                            class="scroll-mt-2 cursor-grab rounded-xl border border-slate-200 bg-white p-3 target:border-brand-500 target:ring-2 target:ring-brand-500/30 active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800">
+                            class="scroll-mt-2 cursor-grab rounded-md border border-slate-200 bg-white p-3 transition hover:border-slate-300 target:border-brand-500 target:ring-2 target:ring-brand-500/30 active:cursor-grabbing dark:border-slate-700/80 dark:bg-slate-900 dark:hover:border-slate-600">
                             {{--
-                                カードの中は上下 2 段。上が「何か」（種別・キー・要約）、
-                                下が「いつ・誰が」（期限・タグ・見積り・担当者）。
+                                カードは Jira と同じ組み立て。要約をいちばん上に置いて主役にし、
+                                最下段に「種別・キー・期限」と「見積り・優先度・担当者」を寄せる。
                                 レーンの中で縦に並ぶので、担当者を必ず右下の同じ位置に置く。
                             --}}
-                            <div class="flex items-center gap-1.5">
-                                <x-issue-type-mark :type="$task->issue_type" />
-                                <a href="{{ route('tasks.show', $task) }}"
-                                   class="font-mono text-[11px] tracking-wider text-slate-400 transition hover:text-brand-700 dark:text-slate-500 dark:hover:text-brand-300">
-                                    {{ $task->key() }}
-                                </a>
-                                <x-priority-mark :priority="$task->priority" class="ml-auto" />
-                            </div>
-
                             <a href="{{ route('tasks.show', $task) }}"
-                               class="mt-1 block text-sm font-medium transition hover:text-brand-700 dark:hover:text-brand-300
-                                      {{ $task->isCompleted() ? 'text-slate-400 line-through dark:text-slate-500' : '' }}">
+                               class="block text-sm transition hover:text-brand-700 dark:hover:text-brand-300
+                                      {{ $task->isCompleted() ? 'text-slate-500 dark:text-slate-400' : '' }}">
                                 {{ $task->title }}
                             </a>
 
@@ -90,16 +79,21 @@
                                 </div>
                             @endif
 
-                            <div class="mt-2 flex items-center gap-2">
-                                <x-due-date :issue="$task" />
+                            <div class="mt-2.5 flex items-center gap-1.5">
+                                <x-issue-type-mark :type="$task->issue_type" />
+                                <a href="{{ route('tasks.show', $task) }}">
+                                    <x-issue-key :issue="$task" />
+                                </a>
+                                <x-due-date :issue="$task" class="ml-1" />
 
-                                <span class="ml-auto flex shrink-0 items-center gap-1.5">
+                                <span class="ml-auto flex shrink-0 items-center gap-2">
                                     @if ($task->story_points !== null)
                                         <span title="ストーリーポイント"
-                                              class="grid size-5 place-items-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300">
+                                              class="grid h-5 min-w-5 place-items-center rounded-full bg-slate-100 px-1 font-mono text-[10px] text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300">
                                             {{ $task->story_points }}
                                         </span>
                                     @endif
+                                    <x-priority-mark :priority="$task->priority" />
                                     <x-avatar :user="$task->assignee" />
                                 </span>
                             </div>
@@ -107,21 +101,21 @@
                     @endforeach
 
                     <li data-lane-empty
-                        class="{{ $lane['tasks']->isEmpty() ? '' : 'hidden' }} rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                        class="{{ $lane['tasks']->isEmpty() ? '' : 'hidden' }} rounded-md border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
                         ここにドロップ
                     </li>
                 </ul>
 
                 {{--
                     レーンごとの追加フォーム。details/summary を使うことで
-                    JavaScript 無しでも開閉できる。ここで追加したタスクは
+                    JavaScript 無しでも開閉できる。ここで追加した課題は
                     そのレーンのステータスで、末尾に入る。
                 --}}
-                <details class="shrink-0 border-t border-slate-100 dark:border-white/5"
+                <details class="shrink-0"
                          @if ((int) old('status') === $key && $errors->has('quick')) open @endif>
-                    <summary title="タスクを追加"
-                             class="flex cursor-pointer list-none items-center justify-center py-2 text-slate-400 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white">
-                        <x-icon name="plus" class="size-4" />
+                    <summary title="課題を追加"
+                             class="mx-2 mb-2 flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-300/50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                        <x-icon name="plus" class="size-4" /> <span aria-hidden="true">作成</span>
                         <span class="sr-only">{{ $lane['status']->name }}に課題を追加</span>
                     </summary>
 

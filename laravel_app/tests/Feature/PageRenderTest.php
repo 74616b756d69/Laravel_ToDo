@@ -17,7 +17,14 @@ class PageRenderTest extends TestCase
 
     public function test_トップページが表示される(): void
     {
-        $this->get(route('welcome'))->assertOk()->assertSee('Laravel 製タスク管理アプリ');
+        $this->get(route('welcome'))->assertOk()->assertSee('チームの課題とスプリントを');
+    }
+
+    public function test_ログイン済みならトップから課題一覧へ送られる(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('welcome'))
+            ->assertRedirect(route('tasks.index'));
     }
 
     public function test_ログイン後の各画面が表示される(): void
@@ -32,7 +39,7 @@ class PageRenderTest extends TestCase
         Issue::factory()->childOf($task)->create(['title' => 'サンプルサブタスク']);
 
         $this->get(route('tasks.index'))->assertOk()->assertSee('サンプルタグ');
-        $this->get(route('tasks.create'))->assertOk()->assertSee('タスクを作成');
+        $this->get(route('tasks.create'))->assertOk()->assertSee('課題を作成');
         $this->get(route('tasks.show', $task))->assertOk()
             ->assertSee('サンプルタスク')
             ->assertSee('サンプルサブタスク');

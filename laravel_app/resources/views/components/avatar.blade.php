@@ -15,23 +15,17 @@
     };
 
     /*
-     * 同じ人はいつも同じ色で出す。頭文字だけだと同じ文字で始まる人を見分けられないため、
-     * 色を 2 つめの手がかりにする。ID から選ぶので、名前を変えても色は動かない。
+     * 人を色で塗り分けない。行の右端にはステータスの色が並ぶので、
+     * 担当者まで色を持つと、意味のない色がいちばん目立ってしまう。
+     * 誰かは頭文字と title / aria-label の名前で示す。
      */
-    $palette = [
-        'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
-        'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200',
-        'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
-        'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
-        'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
-        'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200',
-    ];
+    $colors = 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
 @endphp
 
 @if ($user)
     {{-- title はマウス向け、aria-label は読み上げ向け。頭文字だけでは誰か分からないため両方置く --}}
     <span role="img" title="{{ $label }}: {{ $user->name }}" aria-label="{{ $label }}: {{ $user->name }}"
-          {{ $attributes->merge(['class' => "grid shrink-0 place-items-center rounded-full font-semibold {$box} ".$palette[$user->id % count($palette)]]) }}>
+          {{ $attributes->merge(['class' => "grid shrink-0 place-items-center rounded-full font-semibold {$box} {$colors}"]) }}>
         {{ mb_substr($user->name, 0, 1) }}
     </span>
 @else

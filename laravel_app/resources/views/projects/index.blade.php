@@ -5,14 +5,14 @@
 @section('content')
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">プロジェクト</h1>
+            <h1 class="text-lg font-semibold tracking-tight">プロジェクト</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 自分が参加しているプロジェクトの一覧です。
             </p>
         </div>
 
         <a href="{{ route('projects.create') }}"
-           class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
+           class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
             <x-icon name="plus" class="size-4" /> 新規プロジェクト
         </a>
     </div>

@@ -8,10 +8,8 @@
 
     <div class="card mb-6 p-5 sm:p-6">
         <div class="flex flex-wrap items-center gap-3">
-            <x-badge :classes="$status->badgeClasses()" :dot="$status->dotClasses()">
-                {{ $status->category->label() }}
-            </x-badge>
-            <h2 class="text-lg font-bold">{{ $status->name }}</h2>
+            <x-status-lozenge :status="$status" />
+            <span class="text-sm text-slate-500 dark:text-slate-400">{{ $status->category->label() }}</span>
         </div>
 
         <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
@@ -81,7 +79,7 @@
                 キャンセル
             </a>
             <button type="submit"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-rose-700">
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700">
                 <x-icon name="trash" class="size-4" /> 削除する
             </button>
         </div>

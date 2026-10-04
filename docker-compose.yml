@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     environment: &app-env
-      APP_NAME: ToDo
+      APP_NAME: Tracklet
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000

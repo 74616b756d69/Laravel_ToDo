@@ -10,7 +10,7 @@
 @section('content')
     <div class="mb-5 flex flex-wrap items-end gap-3">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight">通知</h1>
+            <h1 class="text-lg font-semibold tracking-tight">通知</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 担当になった課題と、ウォッチしている課題の変更が届きます。
             </p>

@@ -62,7 +62,7 @@
                     </div>
 
                     <button type="submit"
-                            class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700">
+                            class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
                         <x-icon name="plus" class="size-4" /> 追加
                     </button>
                 </div>
@@ -208,16 +208,12 @@
                                 @if ($transition->isGlobal())
                                     <span class="text-slate-500 dark:text-slate-400">どの状態からでも</span>
                                 @else
-                                    <x-badge :classes="$transition->fromStatus->badgeClasses()">
-                                        {{ $transition->fromStatus->name }}
-                                    </x-badge>
+                                    <x-status-lozenge :status="$transition->fromStatus" />
                                 @endif
 
                                 <span class="text-slate-400">→</span>
 
-                                <x-badge :classes="$transition->toStatus->badgeClasses()">
-                                    {{ $transition->toStatus->name }}
-                                </x-badge>
+                                <x-status-lozenge :status="$transition->toStatus" />
 
                                 <form action="{{ route('projects.transitions.destroy', [$project, $transition]) }}"
                                       method="POST" class="ml-auto">

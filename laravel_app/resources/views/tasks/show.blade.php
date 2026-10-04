@@ -173,10 +173,7 @@
                         <p class="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">ステータス</p>
                         <x-menu align="left" width="w-64" class="w-full">
                             <x-slot:trigger>
-                                <span class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold ring-1 ring-inset {{ $task->status->badgeClasses() }}">
-                                    <span class="size-1.5 rounded-full {{ $task->status->dotClasses() }}"></span>
-                                    {{ $task->status->name }}
-                                </span>
+                                <x-status-lozenge :status="$task->status" class="px-2 py-1 text-xs" />
                             </x-slot:trigger>
 
                             @forelse ($transitions as $status)
@@ -186,8 +183,7 @@
                                     <input type="hidden" name="status" value="{{ $status->id }}">
                                     <button type="submit"
                                             class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-slate-100 dark:hover:bg-white/5">
-                                        <span class="size-1.5 shrink-0 rounded-full {{ $status->dotClasses() }}"></span>
-                                        {{ $status->name }}
+                                        <x-status-lozenge :status="$status" />
                                     </button>
                                 </form>
                             @empty

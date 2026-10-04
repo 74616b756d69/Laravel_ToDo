@@ -41,6 +41,22 @@ enum StatusCategory: string
         };
     }
 
+    /**
+     * Jira のステータス表示（ロゼンジ）の配色。
+     *
+     * 色はカテゴリの 3 つだけ（未着手=灰 / 進行中=青 / 完了=緑）。
+     * ステータスが何本に増えても色は増やさない。色で読ませたいのは
+     * 「どこまで進んだか」であって、ステータスの名前ではないため。
+     */
+    public function lozengeClasses(): string
+    {
+        return match ($this) {
+            self::Todo => 'bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200',
+            self::InProgress => 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-200',
+            self::Done => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200',
+        };
+    }
+
     public function dotClasses(): string
     {
         return match ($this) {
