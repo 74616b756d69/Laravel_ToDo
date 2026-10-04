@@ -16,9 +16,10 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     PATH="$PATH:/opt/composer/vendor/bin"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip libzip-dev default-mysql-client \
+    && apt-get install -y --no-install-recommends git unzip libzip-dev libicu-dev default-mysql-client \
     # pcntl は Reverb（WebSocket サーバー）がシグナルで止まるために要る
-    && docker-php-ext-install pdo_mysql zip pcntl \
+    # intl は Number::fileSize() などの数値整形に要る
+    && docker-php-ext-install pdo_mysql zip pcntl intl \
     && rm -rf /var/lib/apt/lists/*
 
 # 依存だけ先に入れてレイヤーキャッシュを効かせる
