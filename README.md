@@ -300,7 +300,7 @@ docker compose up --build
 初回起動時に以下が自動で実行されます。
 
 1. `.env` の生成と、compose で指定した設定（DB 接続先など）の反映
-2. アプリケーションキーの発行
+2. アプリケーションキーの発行（ボリューム `app_state` に保存し、作り直しても同じキーを使う）
 3. MySQL の起動待ち → マイグレーション（既存データがあれば移行コマンドも順に実行）
 4. デモデータの投入（`SEED_DATABASE: "false"` で無効化）
 
@@ -308,8 +308,22 @@ docker compose up --build
 
 ```bash
 docker compose down      # 停止（データは残る）
-docker compose down -v   # DB のデータごと削除
+docker compose down -v   # DB のデータとアプリケーションキーごと削除
 ```
+
+### コードを書き換えながら確認する（開発用）
+
+素の `docker-compose.yml` はコードをイメージに焼き込むので、変更のたびに `--build` が要ります。
+開発中は `compose.dev.yml` を重ねると、保存しただけで画面に反映されます。
+
+```bash
+docker compose -f docker-compose.yml -f compose.dev.yml up --build
+```
+
+- PHP・Blade・ルート・マイグレーションはソースのディレクトリをマウントして即反映
+- CSS・JS は `assets` コンテナが `vite build --watch` で書き出し続ける
+- キューのワーカーは常駐プロセスなので、PHP を変えたら `docker compose restart queue`
+- マイグレーションを足したら `docker compose restart app`（起動時に流れる）
 
 <details>
 <summary>詰まりどころ: <code>artisan serve</code> は環境変数を子プロセスに渡さない</summary>

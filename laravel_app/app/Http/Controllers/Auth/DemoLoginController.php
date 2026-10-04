@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\DemoDataRefresher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class DemoLoginController extends Controller
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request, DemoDataRefresher $refresher): RedirectResponse
     {
         abort_unless(config('demo.enabled'), 404);
 
@@ -28,6 +29,9 @@ class DemoLoginController extends Controller
                 'email' => 'デモアカウントが未作成です。`php artisan db:seed` を実行してください。',
             ]);
         }
+
+        // 日が経って期限切れだらけにならないよう、見せる前に日付を今日へ追いつかせる
+        $refresher->refresh($user);
 
         Auth::login($user);
         $request->session()->regenerate();

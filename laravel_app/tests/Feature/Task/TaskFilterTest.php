@@ -38,11 +38,11 @@ class TaskFilterTest extends TestCase
 
     public function test_ステータスで絞り込める(): void
     {
-        Issue::factory()->forUser($this->user)->create(['title' => '進行中タスク', 'status_id' => $this->statusIdFor($this->user, 'In Progress')]);
-        Issue::factory()->forUser($this->user)->create(['title' => '未着手タスク', 'status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        Issue::factory()->forUser($this->user)->create(['title' => '進行中タスク', 'status_id' => $this->statusIdFor($this->user, '進行中')]);
+        Issue::factory()->forUser($this->user)->create(['title' => '未着手タスク', 'status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $this->actingAs($this->user)
-            ->get(route('tasks.index', ['status' => $this->statusIdFor($this->user, 'In Progress')]))
+            ->get(route('tasks.index', ['status' => $this->statusIdFor($this->user, '進行中')]))
             ->assertSee('進行中タスク')
             ->assertDontSee('未着手タスク');
     }
@@ -63,7 +63,7 @@ class TaskFilterTest extends TestCase
         Issue::factory()->forUser($this->user)->overdue()->create(['title' => '遅れているタスク']);
         Issue::factory()->forUser($this->user)->create([
             'title' => '余裕のあるタスク',
-            'status_id' => $this->statusIdFor($this->user, 'To Do'),
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
             'due_date' => today()->addWeek(),
         ]);
 
@@ -77,7 +77,7 @@ class TaskFilterTest extends TestCase
     {
         Issue::factory()->forUser($this->user)->create([
             'title' => '完了した昔のタスク',
-            'status_id' => $this->statusIdFor($this->user, 'Done'),
+            'status_id' => $this->statusIdFor($this->user, '完了'),
             'completed_at' => now(),
             'due_date' => today()->subMonth(),
         ]);
@@ -133,7 +133,7 @@ class TaskFilterTest extends TestCase
     {
         // 期限は明示的に外しておく（ファクトリの既定はランダムで期限切れになり得るため）
         Issue::factory()->count(2)->forUser($this->user)->create([
-            'status_id' => $this->statusIdFor($this->user, 'To Do'),
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
             'due_date' => null,
         ]);
         Issue::factory()->forUser($this->user)->completed()->create();

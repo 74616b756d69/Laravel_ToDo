@@ -262,7 +262,7 @@
             @endcan
 
             {{--
-                値をダブルクリックすればその場で直せる項目。
+                値をクリックすればその場で直せる項目（1 行の値なので 1 クリックで開く）。
                 スプリントと起票者だけは読むだけ（移送は SprintService、起票者は不変）。
             --}}
             <dl class="card divide-y divide-slate-100 text-sm dark:divide-white/5">
@@ -270,7 +270,7 @@
                     <dt class="py-1 text-slate-500 dark:text-slate-400">優先度</dt>
                     <dd class="ml-auto min-w-0 flex-1">
                         <x-inline-edit :editable="$canUpdate" :action="route('tasks.priority', $task)"
-                                       field="priority" label="優先度" trigger-class="-mr-2 justify-end py-1 pr-2">
+                                       field="priority" label="優先度" in-place trigger-class="-mr-2 justify-end py-1 pr-2">
                             <x-slot:display>
                                 <span class="flex items-center gap-1.5 font-medium">
                                     <x-priority-mark :priority="$task->priority" />
@@ -278,7 +278,7 @@
                                 </span>
                             </x-slot:display>
 
-                            <select name="priority" class="field px-2 py-1.5 text-sm">
+                            <select name="priority" class="field w-auto py-1 pr-8 pl-2 text-sm">
                                 @foreach (\App\Enums\TaskPriority::options() as $value => $label)
                                     <option value="{{ $value }}"
                                             @selected(old('priority', $task->priority->value) === $value)>{{ $label }}</option>
@@ -293,10 +293,10 @@
                     <dt class="py-1 text-slate-500 dark:text-slate-400">期限</dt>
                     <dd class="ml-auto min-w-0 flex-1">
                         <x-inline-edit :editable="$canUpdate" :action="route('tasks.due-date', $task)"
-                                       field="due_date" label="期限" trigger-class="-mr-2 justify-end py-1 pr-2">
+                                       field="due_date" label="期限" in-place trigger-class="-mr-2 justify-end py-1 pr-2">
                             <x-slot:display>
                                 @if ($task->due_date)
-                                    <x-due-date :issue="$task" class="!text-sm font-medium" />
+                                    <x-due-date :issue="$task" with-date class="!text-sm" />
                                 @else
                                     <span class="text-slate-400 dark:text-slate-500">未設定</span>
                                 @endif
@@ -304,7 +304,7 @@
 
                             {{-- 空にして保存すれば未設定に戻せる --}}
                             <input name="due_date" type="date" value="{{ old('due_date', $task->due_date?->format('Y-m-d')) }}"
-                                   class="field px-2 py-1.5 text-sm">
+                                   class="field w-auto px-2 py-1 text-sm">
                             <x-input-error :messages="$errors->get('due_date')" />
                         </x-inline-edit>
                     </dd>
@@ -319,15 +319,15 @@
                     <dt class="py-1 text-slate-500 dark:text-slate-400">ストーリーポイント</dt>
                     <dd class="ml-auto min-w-0 flex-1">
                         <x-inline-edit :editable="$canUpdate" :action="route('tasks.story-points', $task)"
-                                       field="story_points" label="ストーリーポイント"
+                                       field="story_points" label="ストーリーポイント" in-place
                                        trigger-class="-mr-2 justify-end py-1 pr-2">
                             <x-slot:display>
                                 <span class="font-medium tabular-nums">{{ $task->story_points ?? '—' }}</span>
                             </x-slot:display>
 
                             <input name="story_points" type="number" min="0" max="999" step="1" inputmode="numeric"
-                                   value="{{ old('story_points', $task->story_points) }}" placeholder="未設定"
-                                   class="field px-2 py-1.5 text-sm">
+                                   value="{{ old('story_points', $task->story_points) }}" placeholder="—"
+                                   class="field w-20 [appearance:textfield] px-2 py-1 text-right text-sm tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                             <x-input-error :messages="$errors->get('story_points')" />
                         </x-inline-edit>
                     </dd>
@@ -341,22 +341,21 @@
                     </dd>
                 </div>
 
-                {{-- 日付は参照頻度が低いので、色も文字も落として最後にまとめる --}}
+                {{--
+                    日付は参照頻度が低いので、色も文字も落として最後にまとめる。
+                    3 つとも同じ書き方（日時）に揃え、「何時間前」はホバーで出す。
+                    作成は日時・更新は相対、と混ざっていると見比べられない。
+                --}}
                 <div class="space-y-1 px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
-                    <p class="flex items-center gap-3">
-                        <span>作成</span>
-                        <span class="ml-auto">{{ $task->created_at->isoFormat('YYYY/M/D HH:mm') }}</span>
-                    </p>
-                    <p class="flex items-center gap-3">
-                        <span>更新</span>
-                        <span class="ml-auto">{{ $task->updated_at->diffForHumans() }}</span>
-                    </p>
-                    @if ($task->completed_at)
-                        <p class="flex items-center gap-3">
-                            <span>完了</span>
-                            <span class="ml-auto">{{ $task->completed_at->isoFormat('YYYY/M/D HH:mm') }}</span>
-                        </p>
-                    @endif
+                    @foreach (['作成' => $task->created_at, '更新' => $task->updated_at, '完了' => $task->completed_at] as $label => $at)
+                        @if ($at)
+                            <p class="flex items-center gap-3">
+                                <span>{{ $label }}</span>
+                                <time datetime="{{ $at->toIso8601String() }}" title="{{ $at->diffForHumans() }}"
+                                      class="ml-auto tabular-nums">{{ $at->isoFormat('YYYY/M/D HH:mm') }}</time>
+                            </p>
+                        @endif
+                    @endforeach
                 </div>
             </dl>
 

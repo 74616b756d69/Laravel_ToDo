@@ -39,7 +39,7 @@ class TaskCrudTest extends TestCase
         $response = $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => '新しいタスク',
             'content' => 'メモ',
-            'status' => $this->statusIdFor($this->user, 'In Progress'),
+            'status' => $this->statusIdFor($this->user, '進行中'),
             'priority' => TaskPriority::High->value,
             'due_date' => '2026-12-31',
         ]);
@@ -51,7 +51,7 @@ class TaskCrudTest extends TestCase
         $this->assertSame($this->user->id, $task->assignee_id);
         // 個人プロジェクトに自動で所属する
         $this->assertSame(\App\Models\Project::personalFor($this->user)->id, $task->project_id);
-        $this->assertSame($this->statusIdFor($this->user, 'In Progress'), $task->status_id);
+        $this->assertSame($this->statusIdFor($this->user, '進行中'), $task->status_id);
         $this->assertSame(TaskPriority::High, $task->priority);
         $this->assertNull($task->completed_at);
     }
@@ -60,7 +60,7 @@ class TaskCrudTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => '完了済みタスク',
-            'status' => $this->statusIdFor($this->user, 'Done'),
+            'status' => $this->statusIdFor($this->user, '完了'),
             'priority' => TaskPriority::Low->value,
         ]);
 
@@ -72,7 +72,7 @@ class TaskCrudTest extends TestCase
         $this->actingAs($this->user)
             ->post(route('tasks.store'), [
                 'title' => '',
-                'status' => $this->statusIdFor($this->user, 'To Do'),
+                'status' => $this->statusIdFor($this->user, '未着手'),
                 'priority' => TaskPriority::Low->value,
             ])
             ->assertSessionHasErrors('title');
@@ -111,7 +111,7 @@ class TaskCrudTest extends TestCase
     public function test_完了トグルで状態と完了日時が切り替わる(): void
     {
         $task = Issue::factory()->forUser($this->user)->create([
-            'status_id' => $this->statusIdFor($this->user, 'To Do'),
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
             'completed_at' => null,
         ]);
 

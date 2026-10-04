@@ -33,10 +33,29 @@ for key in APP_NAME APP_ENV APP_DEBUG APP_URL APP_LOCALE \
     fi
 done
 
-# APP_KEY が未設定なら発行する（初回起動時）
-if ! grep -qE '^APP_KEY=.+' .env; then
-    php artisan key:generate --force
+# ---------------------------------------------------------------------------
+# APP_KEY を決める
+#
+# .env はイメージに含めない（.dockerignore）ので、コンテナを作り直すと消える。
+# 起動のたびに発行し直すと、セッションの Cookie が復号できなくなって全員ログアウトし、
+# app と queue でも別々のキーになってしまう。
+# そこで、発行したキーを両コンテナで共有するボリュームに保存して使い回す。
+# compose で APP_KEY を明示した場合はそれを優先する。
+# ---------------------------------------------------------------------------
+KEY_FILE="${APP_KEY_FILE:-/workdir/state/app_key}"
+
+if [ -z "${APP_KEY:-}" ]; then
+    if [ -s "$KEY_FILE" ]; then
+        APP_KEY="$(cat "$KEY_FILE")"
+    else
+        APP_KEY="$(php artisan key:generate --show --no-ansi)"
+        mkdir -p "$(dirname "$KEY_FILE")"
+        printf '%s' "$APP_KEY" > "$KEY_FILE"
+        echo "アプリケーションキーを発行しました（${KEY_FILE} に保存）。"
+    fi
 fi
+
+upsert_env APP_KEY "$APP_KEY"
 
 # 設定キャッシュが残っていると古い接続先を掴むので、起動のたびに捨てる
 php artisan config:clear > /dev/null

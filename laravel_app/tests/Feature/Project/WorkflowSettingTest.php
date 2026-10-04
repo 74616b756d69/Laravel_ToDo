@@ -49,7 +49,7 @@ class WorkflowSettingTest extends TestCase
         ])->assertRedirect();
 
         $this->assertSame(
-            ['To Do', 'In Progress', 'In Review', 'Done', 'Blocked'],
+            ['未着手', '進行中', 'レビュー中', '完了', 'Blocked'],
             $this->project->statuses()->pluck('name')->all(),
         );
     }
@@ -57,14 +57,14 @@ class WorkflowSettingTest extends TestCase
     public function test_同じ名前のステータスは追加できない(): void
     {
         $this->actingAs($this->admin)->post(route('projects.statuses.store', $this->project), [
-            'name' => 'To Do',
+            'name' => '未着手',
             'category' => StatusCategory::Todo->value,
         ])->assertSessionHasErrors('name');
     }
 
     public function test_ステータスを改名してもカテゴリで完了判定が続く(): void
     {
-        $done = $this->named('Done');
+        $done = $this->named('完了');
         $task = Issue::factory()->inProject($this->project, $this->admin)
             ->create(['status_id' => $done->id]);
 
@@ -79,10 +79,10 @@ class WorkflowSettingTest extends TestCase
 
     public function test_最後の完了ステータスはカテゴリを変えられない(): void
     {
-        $done = $this->named('Done');
+        $done = $this->named('完了');
 
         $this->actingAs($this->admin)->put(route('projects.statuses.update', [$this->project, $done]), [
-            'name' => 'Done',
+            'name' => '完了',
             'category' => StatusCategory::InProgress->value,
         ])->assertSessionHasErrors('workflow');
 
@@ -93,11 +93,11 @@ class WorkflowSettingTest extends TestCase
     public function test_ステータスを並べ替えられる(): void
     {
         $this->actingAs($this->admin)
-            ->patch(route('projects.statuses.move', [$this->project, $this->named('In Progress')]), ['direction' => 'up'])
+            ->patch(route('projects.statuses.move', [$this->project, $this->named('進行中')]), ['direction' => 'up'])
             ->assertRedirect();
 
         $this->assertSame(
-            ['In Progress', 'To Do', 'In Review', 'Done'],
+            ['進行中', '未着手', 'レビュー中', '完了'],
             $this->project->statuses()->pluck('name')->all(),
         );
     }
@@ -105,11 +105,11 @@ class WorkflowSettingTest extends TestCase
     public function test_先頭を上へ動かしても並びは変わらない(): void
     {
         $this->actingAs($this->admin)
-            ->patch(route('projects.statuses.move', [$this->project, $this->named('To Do')]), ['direction' => 'up'])
+            ->patch(route('projects.statuses.move', [$this->project, $this->named('未着手')]), ['direction' => 'up'])
             ->assertRedirect();
 
         $this->assertSame(
-            ['To Do', 'In Progress', 'In Review', 'Done'],
+            ['未着手', '進行中', 'レビュー中', '完了'],
             $this->project->statuses()->pluck('name')->all(),
         );
     }
@@ -117,14 +117,14 @@ class WorkflowSettingTest extends TestCase
     public function test_並べ替えると初期ステータスも入れ替わる(): void
     {
         $this->actingAs($this->admin)
-            ->patch(route('projects.statuses.move', [$this->project, $this->named('In Progress')]), ['direction' => 'up']);
+            ->patch(route('projects.statuses.move', [$this->project, $this->named('進行中')]), ['direction' => 'up']);
 
-        $this->assertSame('In Progress', $this->project->initialStatus()->name);
+        $this->assertSame('進行中', $this->project->initialStatus()->name);
     }
 
     public function test_課題の無いステータスはそのまま削除できる(): void
     {
-        $status = $this->named('In Review');
+        $status = $this->named('レビュー中');
 
         $this->actingAs($this->admin)
             ->delete(route('projects.statuses.destroy', [$this->project, $status]))
@@ -135,7 +135,7 @@ class WorkflowSettingTest extends TestCase
 
     public function test_ステータスを消すとその遷移も消える(): void
     {
-        $status = $this->named('In Review');
+        $status = $this->named('レビュー中');
 
         $this->assertTrue($this->project->transitions()
             ->where('from_status_id', $status->id)
@@ -153,7 +153,7 @@ class WorkflowSettingTest extends TestCase
 
     public function test_課題が残っているステータスは移送先なしでは消せない(): void
     {
-        $status = $this->named('In Review');
+        $status = $this->named('レビュー中');
         Issue::factory()->inProject($this->project, $this->admin)->create(['status_id' => $status->id]);
 
         $this->actingAs($this->admin)
@@ -166,8 +166,8 @@ class WorkflowSettingTest extends TestCase
 
     public function test_移送先を選べば課題を移してから消せる(): void
     {
-        $status = $this->named('In Review');
-        $destination = $this->named('In Progress');
+        $status = $this->named('レビュー中');
+        $destination = $this->named('進行中');
         $task = Issue::factory()->inProject($this->project, $this->admin)->create(['status_id' => $status->id]);
 
         $this->actingAs($this->admin)
@@ -181,8 +181,8 @@ class WorkflowSettingTest extends TestCase
 
     public function test_移送は履歴に残る(): void
     {
-        $status = $this->named('In Review');
-        $destination = $this->named('In Progress');
+        $status = $this->named('レビュー中');
+        $destination = $this->named('進行中');
         $task = Issue::factory()->inProject($this->project, $this->admin)->create(['status_id' => $status->id]);
 
         $this->actingAs($this->admin)
@@ -193,14 +193,14 @@ class WorkflowSettingTest extends TestCase
         $this->assertDatabaseHas('activities', [
             'issue_id' => $task->id,
             'field' => 'status',
-            'old_value' => 'In Review',
-            'new_value' => 'In Progress',
+            'old_value' => 'レビュー中',
+            'new_value' => '進行中',
         ]);
     }
 
     public function test_削除済みの課題が残っていても移送先が要る(): void
     {
-        $status = $this->named('In Review');
+        $status = $this->named('レビュー中');
         $task = Issue::factory()->inProject($this->project, $this->admin)->create(['status_id' => $status->id]);
         $task->delete();
 
@@ -214,7 +214,7 @@ class WorkflowSettingTest extends TestCase
 
     public function test_最後の完了ステータスは削除できない(): void
     {
-        $done = $this->named('Done');
+        $done = $this->named('完了');
 
         $this->actingAs($this->admin)
             ->from(route('projects.statuses.delete', [$this->project, $done]))
@@ -226,9 +226,9 @@ class WorkflowSettingTest extends TestCase
 
     public function test_最後のひとつになったステータスは削除できない(): void
     {
-        $keep = $this->named('Done');
+        $keep = $this->named('完了');
 
-        foreach (['To Do', 'In Progress', 'In Review'] as $name) {
+        foreach (['未着手', '進行中', 'レビュー中'] as $name) {
             $status = $this->named($name);
             $this->actingAs($this->admin)->delete(route('projects.statuses.destroy', [$this->project, $status]));
         }
@@ -265,7 +265,7 @@ class WorkflowSettingTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($member)
-            ->get(route('projects.statuses.delete', [$this->project, $this->named('To Do')]))
+            ->get(route('projects.statuses.delete', [$this->project, $this->named('未着手')]))
             ->assertForbidden();
     }
 
@@ -274,36 +274,36 @@ class WorkflowSettingTest extends TestCase
     public function test_遷移を足すとその順路が通れるようになる(): void
     {
         $task = Issue::factory()->inProject($this->project, $this->admin)
-            ->create(['status_id' => $this->named('To Do')->id]);
+            ->create(['status_id' => $this->named('未着手')->id]);
 
-        // 既定では To Do → In Review は禁止されている
+        // 既定では 未着手 → レビュー中 は禁止されている
         $this->actingAs($this->admin)
-            ->patch(route('tasks.transition', $task), ['status' => $this->named('In Review')->id])
+            ->patch(route('tasks.transition', $task), ['status' => $this->named('レビュー中')->id])
             ->assertSessionHasErrors('status');
 
         $this->actingAs($this->admin)->post(route('projects.transitions.store', $this->project), [
-            'from' => $this->named('To Do')->id,
-            'to' => $this->named('In Review')->id,
+            'from' => $this->named('未着手')->id,
+            'to' => $this->named('レビュー中')->id,
         ])->assertRedirect();
 
         $this->actingAs($this->admin)
-            ->patch(route('tasks.transition', $task), ['status' => $this->named('In Review')->id])
+            ->patch(route('tasks.transition', $task), ['status' => $this->named('レビュー中')->id])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame($this->named('In Review')->id, $task->refresh()->status_id);
+        $this->assertSame($this->named('レビュー中')->id, $task->refresh()->status_id);
     }
 
     public function test_どの状態からでもの遷移を足せる(): void
     {
         $this->actingAs($this->admin)->post(route('projects.transitions.store', $this->project), [
             'from' => '',
-            'to' => $this->named('In Review')->id,
+            'to' => $this->named('レビュー中')->id,
         ])->assertRedirect();
 
         $this->assertDatabaseHas('transitions', [
             'project_id' => $this->project->id,
             'from_status_id' => null,
-            'to_status_id' => $this->named('In Review')->id,
+            'to_status_id' => $this->named('レビュー中')->id,
         ]);
     }
 
@@ -312,8 +312,8 @@ class WorkflowSettingTest extends TestCase
         $this->actingAs($this->admin)
             ->from(route('projects.edit', $this->project))
             ->post(route('projects.transitions.store', $this->project), [
-                'from' => $this->named('To Do')->id,
-                'to' => $this->named('In Progress')->id,
+                'from' => $this->named('未着手')->id,
+                'to' => $this->named('進行中')->id,
             ])->assertSessionHasErrors('workflow');
     }
 
@@ -322,8 +322,8 @@ class WorkflowSettingTest extends TestCase
         $this->actingAs($this->admin)
             ->from(route('projects.edit', $this->project))
             ->post(route('projects.transitions.store', $this->project), [
-                'from' => $this->named('To Do')->id,
-                'to' => $this->named('To Do')->id,
+                'from' => $this->named('未着手')->id,
+                'to' => $this->named('未着手')->id,
             ])->assertSessionHasErrors('workflow');
     }
 
@@ -332,7 +332,7 @@ class WorkflowSettingTest extends TestCase
         $others = Project::factory()->withMember($this->admin)->create();
 
         $this->actingAs($this->admin)->post(route('projects.transitions.store', $this->project), [
-            'from' => $this->named('To Do')->id,
+            'from' => $this->named('未着手')->id,
             'to' => $others->initialStatus()->id,
         ])->assertSessionHasErrors('to');
     }
@@ -353,18 +353,18 @@ class WorkflowSettingTest extends TestCase
         $this->project->transitions()->delete();
 
         $task = Issue::factory()->inProject($this->project, $this->admin)
-            ->create(['status_id' => $this->named('To Do')->id]);
+            ->create(['status_id' => $this->named('未着手')->id]);
 
         $this->actingAs($this->admin)
-            ->patch(route('tasks.transition', $task), ['status' => $this->named('In Review')->id])
+            ->patch(route('tasks.transition', $task), ['status' => $this->named('レビュー中')->id])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame($this->named('In Review')->id, $task->refresh()->status_id);
+        $this->assertSame($this->named('レビュー中')->id, $task->refresh()->status_id);
     }
 
     public function test_削除の確認画面に移送先と残っている課題が出る(): void
     {
-        $status = $this->named('In Review');
+        $status = $this->named('レビュー中');
         $task = Issue::factory()->inProject($this->project, $this->admin)
             ->create(['status_id' => $status->id, 'title' => 'レビュー待ちの課題']);
 
@@ -375,8 +375,8 @@ class WorkflowSettingTest extends TestCase
             ->assertSee('レビュー待ちの課題')
             ->assertSee($task->key())
             // 自分以外のステータスだけが移送先に並ぶ
-            ->assertSee('In Progress へ移す')
-            ->assertDontSee('In Review へ移す');
+            ->assertSee('進行中 へ移す')
+            ->assertDontSee('レビュー中 へ移す');
     }
 
     public function test_設定画面にワークフローが出る(): void

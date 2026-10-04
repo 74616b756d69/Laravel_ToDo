@@ -54,7 +54,7 @@ class QuickAddTest extends TestCase
         $this->assertSame('請求書を送る', $task->title);
         $this->assertSame('2026-09-25', $task->due_date->toDateString());
         $this->assertSame(TaskPriority::High, $task->priority);
-        $this->assertSame($this->named('To Do')->id, $task->status_id);
+        $this->assertSame($this->named('未着手')->id, $task->status_id);
         $this->assertTrue($task->tags->contains($tag));
     }
 
@@ -141,12 +141,12 @@ class QuickAddTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '明日 レビューを依頼する !高',
-            'status' => $this->named('In Progress')->id,
+            'status' => $this->named('進行中')->id,
         ])->assertRedirect();
 
         $task = Issue::sole();
 
-        $this->assertSame($this->named('In Progress')->id, $task->status_id);
+        $this->assertSame($this->named('進行中')->id, $task->status_id);
         $this->assertSame(TaskPriority::High, $task->priority);
         $this->assertNull($task->completed_at);
     }
@@ -155,7 +155,7 @@ class QuickAddTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '対応済みの作業',
-            'status' => $this->named('Done')->id,
+            'status' => $this->named('完了')->id,
         ]);
 
         $this->assertNotNull(Issue::sole()->completed_at);
@@ -163,15 +163,15 @@ class QuickAddTest extends TestCase
 
     public function test_追加したタスクはそのレーンの末尾に並ぶ(): void
     {
-        Issue::factory()->count(3)->inStatus($this->named('To Do'))->create(['position' => 0]);
+        Issue::factory()->count(3)->inStatus($this->named('未着手'))->create(['position' => 0]);
 
         $this->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '最後に足したタスク',
-            'status' => $this->named('To Do')->id,
+            'status' => $this->named('未着手')->id,
         ]);
 
         $order = Issue::query()->visibleTo($this->user)->topLevel()
-            ->where('status_id', $this->named('To Do')->id)
+            ->where('status_id', $this->named('未着手')->id)
             ->orderBy('position')
             ->orderByDesc('id')
             ->pluck('title');
@@ -183,7 +183,7 @@ class QuickAddTest extends TestCase
     {
         $this->from(route('board'))->actingAs($this->user)->post(route('tasks.quick'), [
             'quick' => '追加したタスク',
-            'status' => $this->named('To Do')->id,
+            'status' => $this->named('未着手')->id,
         ])->assertRedirect(route('board').'#task-'.Issue::sole()->id);
     }
 
@@ -199,10 +199,10 @@ class QuickAddTest extends TestCase
         $this->actingAs($this->user)
             ->post(route('tasks.quick'), [
                 'quick' => '調査する',
-                'status' => $this->named('In Progress')->id,
+                'status' => $this->named('進行中')->id,
             ])
             // 通知にはステータス名がそのまま出る
-            ->assertSessionHas('status', fn (string $message) => str_contains($message, 'In Progress'));
+            ->assertSessionHas('status', fn (string $message) => str_contains($message, '進行中'));
     }
 
     public function test_不正なレーンは受け付けない(): void

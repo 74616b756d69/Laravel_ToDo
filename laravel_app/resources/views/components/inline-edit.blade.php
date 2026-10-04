@@ -10,6 +10,10 @@
     'triggerClass' => '',
     // 権限が無いときは読むだけ。呼び出し側で @can を書き分けずに済むようここで畳む
     'editable' => true,
+    // 開いたとき、表示の下に入力を足すのではなく、表示そのものを入力に置き換える。
+    // 1 行の値（数値・日付・選択）向け。行の高さが変わらず、下に枠が開いたように見えない。
+    // こうした値には選んでコピーしたい文章が無いので、1 クリックで開く。
+    'inPlace' => false,
 ])
 
 @php
@@ -29,25 +33,28 @@
 
     1 クリックで開かないのは、表示の中の文字を選んだりリンクを押したりする方が
     多いから。開く操作はダブルクリックに寄せて、読むときの邪魔をしない。
+    ただし inPlace の欄（優先度・期限など 1 行の値）は 1 クリックで開く。
 
     $display に表示、既定スロットに入力欄を入れる。
 --}}
 @if (! $editable)
     <div {{ $attributes->merge(['class' => 'flex items-center gap-1.5 '.$triggerClass]) }}>{{ $display }}</div>
 @else
-    <details data-inline-edit {{ $attributes->merge(['class' => 'group/edit']) }} @if ($hasError) open @endif>
+    <details data-inline-edit @if ($inPlace) data-single-click @endif
+             {{ $attributes->merge(['class' => 'group/edit']) }} @if ($hasError) open @endif>
         {{--
             マウスはダブルクリック（app.js が 1 クリック目の既定動作を止める）。
             キーボードの Enter / Space はそのまま開く。JS が無い環境では
             1 クリックで開く素の details として動く。
         --}}
-        <summary title="ダブルクリックして{{ $label }}を編集"
-                 class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg transition hover:bg-slate-100 dark:hover:bg-white/5 {{ $triggerClass }}">
+        <summary title="{{ $inPlace ? 'クリック' : 'ダブルクリック' }}して{{ $label }}を編集"
+                 class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg transition hover:bg-slate-100 dark:hover:bg-white/5 {{ $inPlace ? 'group-open/edit:hidden' : '' }} {{ $triggerClass }}">
             {{ $display }}
             <span class="sr-only">{{ $label }}を編集</span>
         </summary>
 
-        <form action="{{ $action }}" method="POST" data-inline-form class="mt-2 space-y-2">
+        <form action="{{ $action }}" method="POST" data-inline-form
+              class="{{ $inPlace ? 'flex flex-col items-end gap-1' : 'mt-2 space-y-2' }}">
             @csrf
             @method($method)
 

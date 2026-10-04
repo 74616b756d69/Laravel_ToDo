@@ -33,7 +33,7 @@
         <x-due-date :issue="$issue" />
     </span>
 
-    <x-priority-mark :priority="$issue->priority" />
+    <x-priority-mark :priority="$issue->priority" high-only />
 
     {{-- 見積りはスプリントに何ポイント積むかを決める材料なので、この画面では必ず出す --}}
     <span title="{{ $issue->story_points === null ? '見積り未設定' : 'ストーリーポイント' }}"

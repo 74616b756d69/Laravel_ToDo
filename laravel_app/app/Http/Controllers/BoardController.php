@@ -18,6 +18,15 @@ use Illuminate\View\View;
 
 class BoardController extends Controller
 {
+    /**
+     * 完了レーンに並べる枚数。
+     *
+     * 完了した課題は増える一方で、全部並べるとレーンが縦に伸び続ける。
+     * ボードで見たいのは「いま動いているもの」と「直近で片付いたもの」なので、
+     * 完了は最近のものだけを置き、残りは件数と一覧へのリンクにする。
+     */
+    private const DONE_LANE_LIMIT = 10;
+
     public function __construct(
         private readonly WorkflowService $workflows,
         private readonly IssueOrderingService $ordering,
@@ -49,13 +58,39 @@ class BoardController extends Controller
         return view('board.index', [
             'project' => $project,
             // レーンは statuses から動的に作る。空のレーンも必ず用意する
-            'lanes' => $statuses->map(fn (Status $status) => [
-                'status' => $status,
-                'tasks' => $tasks->where('status_id', $status->id)->values(),
-            ]),
+            'lanes' => $statuses->map(fn (Status $status) => $this->lane(
+                $status,
+                $tasks->where('status_id', $status->id)->values(),
+            )),
             // どのレーンへ運べるかを画面側で判定するための表
             'allowedTransitions' => $this->allowedTransitionMap($project, $statuses),
         ]);
+    }
+
+    /**
+     * 1 レーン分。完了カテゴリのレーンだけ、最近完了したものに絞る。
+     *
+     * 絞るのは「どれを出すか」だけで、並びはほかのレーンと同じ position 順のまま。
+     *
+     * @param  Collection<int, Issue>  $tasks  position 順に並んだ、このレーンの課題
+     * @return array{status: Status, tasks: Collection<int, Issue>, hidden: int}
+     */
+    private function lane(Status $status, Collection $tasks): array
+    {
+        if (! $status->isDone() || $tasks->count() <= self::DONE_LANE_LIMIT) {
+            return ['status' => $status, 'tasks' => $tasks, 'hidden' => 0];
+        }
+
+        $recent = $tasks
+            ->sortByDesc(fn (Issue $issue) => $issue->completed_at?->getTimestamp() ?? 0)
+            ->take(self::DONE_LANE_LIMIT)
+            ->pluck('id');
+
+        return [
+            'status' => $status,
+            'tasks' => $tasks->whereIn('id', $recent)->values(),
+            'hidden' => $tasks->count() - $recent->count(),
+        ];
     }
 
     /**

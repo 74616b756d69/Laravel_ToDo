@@ -44,12 +44,42 @@ class BoardTest extends TestCase
             ->create($attributes);
     }
 
+    public function test_完了レーンは最近完了した10件だけ並べ_残りは件数で示す(): void
+    {
+        // 1 日ずつずらして 12 件完了させる（0 日前〜11 日前）
+        $issues = collect(range(0, 11))->map(fn (int $daysAgo) => $this->issueAt('完了', [
+            'title' => "完了した課題{$daysAgo}",
+            'completed_at' => now()->subDays($daysAgo),
+        ]));
+
+        $response = $this->actingAs($this->user)->get(route('board'))->assertOk();
+        $done = $response->viewData('lanes')->firstWhere('status.name', '完了');
+
+        $this->assertCount(10, $done['tasks']);
+        $this->assertSame(2, $done['hidden']);
+        // 古いほうの 2 件が省かれる
+        $this->assertNotContains($issues[10]->id, $done['tasks']->pluck('id'));
+        $this->assertNotContains($issues[11]->id, $done['tasks']->pluck('id'));
+
+        $response->assertSee('件を一覧で見る');
+    }
+
+    public function test_完了以外のレーンは件数を絞らない(): void
+    {
+        collect(range(1, 12))->each(fn () => $this->issueAt('未着手'));
+
+        $todo = $this->actingAs($this->user)->get(route('board'))->viewData('lanes')->firstWhere('status.name', '未着手');
+
+        $this->assertCount(12, $todo['tasks']);
+        $this->assertSame(0, $todo['hidden']);
+    }
+
     public function test_レーンはワークフローのステータスから作られる(): void
     {
         $lanes = $this->actingAs($this->user)->get(route('board'))->assertOk()->viewData('lanes');
 
         $this->assertSame(
-            ['To Do', 'In Progress', 'In Review', 'Done'],
+            ['未着手', '進行中', 'レビュー中', '完了'],
             $lanes->pluck('status.name')->all(),
         );
     }
@@ -68,22 +98,22 @@ class BoardTest extends TestCase
 
     public function test_ボードがステータスごとに表示される(): void
     {
-        $this->issueAt('To Do', ['title' => '未着手の課題']);
-        $this->issueAt('Done', ['title' => '完了の課題']);
+        $this->issueAt('未着手', ['title' => '未着手の課題']);
+        $this->issueAt('完了', ['title' => '完了の課題']);
 
         $lanes = $this->actingAs($this->user)->get(route('board'))->assertOk()
             ->viewData('lanes')->keyBy('status.name');
 
-        $this->assertCount(1, $lanes['To Do']['tasks']);
-        $this->assertCount(0, $lanes['In Progress']['tasks']);
-        $this->assertCount(0, $lanes['In Review']['tasks']);
-        $this->assertCount(1, $lanes['Done']['tasks']);
+        $this->assertCount(1, $lanes['未着手']['tasks']);
+        $this->assertCount(0, $lanes['進行中']['tasks']);
+        $this->assertCount(0, $lanes['レビュー中']['tasks']);
+        $this->assertCount(1, $lanes['完了']['tasks']);
     }
 
     public function test_カードを別レーンへ移動するとステータスが変わる(): void
     {
-        $task = $this->issueAt('To Do', ['completed_at' => null]);
-        $done = $this->named('Done');
+        $task = $this->issueAt('未着手', ['completed_at' => null]);
+        $done = $this->named('完了');
 
         $this->actingAs($this->user)
             ->patchJson(route('board.move', $task), [
@@ -92,7 +122,7 @@ class BoardTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('status', $done->id)
-            ->assertJsonPath('statusName', 'Done');
+            ->assertJsonPath('statusName', '完了');
 
         $task->refresh();
         $this->assertSame($done->id, $task->status_id);
@@ -101,10 +131,10 @@ class BoardTest extends TestCase
 
     public function test_完了から戻すと完了日時が消える(): void
     {
-        $task = $this->issueAt('Done');
+        $task = $this->issueAt('完了');
 
         $this->actingAs($this->user)->patchJson(route('board.move', $task), [
-            'status' => $this->named('In Progress')->id,
+            'status' => $this->named('進行中')->id,
             'ids' => [$task->id],
         ])->assertOk();
 
@@ -113,11 +143,11 @@ class BoardTest extends TestCase
 
     public function test_送った順序どおりに並び順が保存される(): void
     {
-        $tasks = collect(range(1, 3))->map(fn () => $this->issueAt('To Do'));
+        $tasks = collect(range(1, 3))->map(fn () => $this->issueAt('未着手'));
         $reordered = $tasks->reverse()->values();
 
         $this->actingAs($this->user)->patchJson(route('board.move', $reordered->first()), [
-            'status' => $this->named('To Do')->id,
+            'status' => $this->named('未着手')->id,
             'ids' => $reordered->pluck('id')->all(),
         ])->assertOk();
 
@@ -129,12 +159,12 @@ class BoardTest extends TestCase
 
     public function test_参加していないプロジェクトの課題の並び順は書き換えられない(): void
     {
-        $mine = $this->issueAt('To Do', ['position' => 0]);
+        $mine = $this->issueAt('未着手', ['position' => 0]);
         $others = Issue::factory()->create(['position' => 99]);
 
         // 他プロジェクトの ID を紛れ込ませても無視される
         $this->actingAs($this->user)->patchJson(route('board.move', $mine), [
-            'status' => $this->named('To Do')->id,
+            'status' => $this->named('未着手')->id,
             'ids' => [$others->id, $mine->id],
         ])->assertOk();
 
@@ -148,7 +178,7 @@ class BoardTest extends TestCase
 
         $this->actingAs($this->user)
             ->patchJson(route('board.move', $others), [
-                'status' => $this->named('Done')->id,
+                'status' => $this->named('完了')->id,
                 'ids' => [$others->id],
             ])
             ->assertNotFound();
@@ -156,7 +186,7 @@ class BoardTest extends TestCase
 
     public function test_存在しないステータスへは移動できない(): void
     {
-        $task = $this->issueAt('To Do');
+        $task = $this->issueAt('未着手');
 
         $this->actingAs($this->user)
             ->patchJson(route('board.move', $task), ['status' => 999999, 'ids' => [$task->id]])
@@ -165,7 +195,7 @@ class BoardTest extends TestCase
 
     public function test_別プロジェクトのステータスへは移動できない(): void
     {
-        $task = $this->issueAt('To Do');
+        $task = $this->issueAt('未着手');
         $foreign = Project::factory()->create()->statuses()->first();
 
         $this->actingAs($this->user)
@@ -177,30 +207,30 @@ class BoardTest extends TestCase
 
     public function test_許可されていない遷移は422と理由を返す(): void
     {
-        $task = $this->issueAt('To Do');
+        $task = $this->issueAt('未着手');
 
         $this->actingAs($this->user)
             ->patchJson(route('board.move', $task), [
-                'status' => $this->named('In Review')->id,
+                'status' => $this->named('レビュー中')->id,
                 'ids' => [$task->id],
             ])
             ->assertStatus(422)
-            ->assertJsonPath('from', 'To Do')
-            ->assertJsonPath('to', 'In Review')
-            ->assertJsonFragment(['message' => '「To Do」から「In Review」へは変更できません。このプロジェクトのワークフローで許可されていない遷移です。']);
+            ->assertJsonPath('from', '未着手')
+            ->assertJsonPath('to', 'レビュー中')
+            ->assertJsonFragment(['message' => '「未着手」から「レビュー中」へは変更できません。このプロジェクトのワークフローで許可されていない遷移です。']);
     }
 
     public function test_許可されていない遷移では状態も並び順も変わらない(): void
     {
-        $task = $this->issueAt('To Do', ['position' => 7]);
+        $task = $this->issueAt('未着手', ['position' => 7]);
 
         $this->actingAs($this->user)->patchJson(route('board.move', $task), [
-            'status' => $this->named('In Review')->id,
+            'status' => $this->named('レビュー中')->id,
             'ids' => [$task->id],
         ])->assertStatus(422);
 
         $task->refresh();
-        $this->assertSame($this->named('To Do')->id, $task->status_id);
+        $this->assertSame($this->named('未着手')->id, $task->status_id);
         $this->assertSame(7, $task->position);
     }
 
@@ -209,12 +239,12 @@ class BoardTest extends TestCase
         $map = $this->actingAs($this->user)->get(route('board'))->assertOk()
             ->viewData('allowedTransitions');
 
-        $todo = $this->named('To Do')->id;
-        $review = $this->named('In Review')->id;
+        $todo = $this->named('未着手')->id;
+        $review = $this->named('レビュー中')->id;
 
         // JS はこの表を見てドロップ自体を止める
         $this->assertNotContains($review, $map[$todo]);
-        $this->assertContains($this->named('In Progress')->id, $map[$todo]);
+        $this->assertContains($this->named('進行中')->id, $map[$todo]);
         // 自分自身（レーン内の並べ替え）は常に許可
         $this->assertContains($todo, $map[$todo]);
     }

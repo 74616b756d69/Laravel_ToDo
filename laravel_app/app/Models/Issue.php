@@ -343,7 +343,7 @@ class Issue extends Model
 
     /**
      * 完了かどうかはステータス名ではなくカテゴリで判断する。
-     * 「Done」を「リリース済み」に改名しても壊れないようにするため。
+     * 「完了」を「リリース済み」に改名しても壊れないようにするため。
      */
     public function isCompleted(): bool
     {
@@ -369,6 +369,16 @@ class Issue extends Model
             && ! $this->isOverdue()
             && $this->due_date !== null
             && $this->due_date->isBefore(today()->addDays(3));
+    }
+
+    /**
+     * 期限までの残り日数。今日が期限なら 0、過ぎていれば負の数。期限が無ければ null。
+     */
+    public function daysUntilDue(): ?int
+    {
+        return $this->due_date === null
+            ? null
+            : (int) today()->diffInDays($this->due_date, false);
     }
 
     // --- スコープ -------------------------------------------------------------

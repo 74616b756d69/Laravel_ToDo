@@ -166,8 +166,10 @@ function updateCounts(lanes) {
     lanes.forEach((lane) => {
         const counter = document.querySelector(`[data-lane-count="${lane.dataset.lane}"]`);
 
+        // 完了レーンは最近のものだけ並べているので、省いた分（data-lane-hidden）を足して数える
         if (counter) {
-            counter.textContent = lane.querySelectorAll('[data-task-id]').length;
+            counter.textContent = lane.querySelectorAll('[data-task-id]').length
+                + Number(lane.dataset.laneHidden || 0);
         }
 
         lane.querySelector('[data-lane-empty]')?.classList.toggle(

@@ -14,6 +14,7 @@ use App\Models\Sprint;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\DemoDataRefresher;
 use App\Services\IssueLinkService;
 use App\Services\SprintService;
 use Illuminate\Database\Seeder;
@@ -71,6 +72,9 @@ class DemoUserSeeder extends Seeder
         $this->createSprints($project, $open);
         $this->createComments($tasks);
         $this->createLinks($project);
+
+        // 日付はすべて今日を基準に作ったので、ここを基準日として覚えておく
+        DemoDataRefresher::markFresh();
 
         $this->command?->info(sprintf(
             'デモアカウント（%s / %s）にタスク %d 件を作成しました。',
@@ -161,7 +165,7 @@ class DemoUserSeeder extends Seeder
             ->inProject($project, $user)
             ->create([
                 'priority' => $row[0],
-                // 未完了レーン（To Do / In Progress / In Review）に散らす
+                // 未完了レーン（未着手 / 進行中 / レビュー中）に散らす
                 'status_id' => fn () => $this->openStatuses($project)->random()->id,
                 'completed_at' => null,
                 'due_date' => fn () => $this->openDueDate(),

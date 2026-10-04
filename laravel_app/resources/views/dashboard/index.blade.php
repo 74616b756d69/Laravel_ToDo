@@ -251,9 +251,10 @@
                     @foreach ($upcoming as $task)
                         <li>
                             <a href="{{ route('tasks.show', $task) }}"
-                               class="flex items-baseline gap-3 py-2.5 hover:text-brand-700 dark:hover:text-brand-300">
-                                <span class="w-14 shrink-0 text-xs tabular-nums {{ $task->isOverdue() ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400' }}">
-                                    {{ $task->due_date->isoFormat('M/D(ddd)') }}
+                               class="flex items-center gap-3 py-2.5 hover:text-brand-700 dark:hover:text-brand-300">
+                                {{-- 期限の見せ方は一覧・ボードと同じ x-due-date に揃える --}}
+                                <span class="w-20 shrink-0">
+                                    <x-due-date :issue="$task" />
                                 </span>
                                 <span class="min-w-0 flex-1 truncate text-sm">{{ $task->title }}</span>
                             </a>

@@ -1,0 +1,48 @@
+# 開発用の上書き設定。コードを書き換えたら、コンテナを作り直さずに画面へ反映させる。
+#
+#   docker compose -f docker-compose.yml -f compose.dev.yml up --build
+#
+# 素の docker-compose.yml はコードをイメージに焼き込むので、
+# 変更のたびに --build し直さないと画面が古いまま残る。
+#
+# - PHP と Blade はソースのディレクトリをマウントするので、保存すればすぐ反映される
+# - CSS と JS は assets コンテナが `vite build --watch` で public/build に書き出し続ける
+# - キューのワーカーは常駐プロセスなので、PHP を変えたら `docker compose restart queue`
+#
+# ディレクトリ丸ごと（./laravel_app）はマウントしない。ホストの .env（SQLite 向け）を
+# エントリポイントが MySQL 向けに書き換えてしまい、vendor もイメージのものが隠れるため。
+
+x-source: &source
+  - ./laravel_app/app:/workdir/laravel_app/app
+  - ./laravel_app/config:/workdir/laravel_app/config
+  - ./laravel_app/database:/workdir/laravel_app/database
+  - ./laravel_app/lang:/workdir/laravel_app/lang
+  - ./laravel_app/resources:/workdir/laravel_app/resources
+  - ./laravel_app/routes:/workdir/laravel_app/routes
+  - ./laravel_app/public/build:/workdir/laravel_app/public/build
+  - app_state:/workdir/state
+
+services:
+  app:
+    volumes: *source
+    depends_on:
+      assets:
+        condition: service_healthy
+
+  queue:
+    volumes: *source
+
+  assets:
+    image: node:22-slim
+    working_dir: /app
+    command: ["sh", "-c", "npm ci && npm run build -- --watch"]
+    volumes:
+      - ./laravel_app:/app
+      # node_modules はホスト（macOS）用のネイティブバイナリを含むので、コンテナ専用にする
+      - /app/node_modules
+    # 最初のビルドが終わる（manifest ができる）まで app を待たせる
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/public/build/manifest.json"]
+      interval: 3s
+      timeout: 3s
+      retries: 60

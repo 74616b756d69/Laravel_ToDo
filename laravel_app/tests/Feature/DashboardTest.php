@@ -30,7 +30,7 @@ class DashboardTest extends TestCase
 
     public function test_完了率が計算される(): void
     {
-        Issue::factory()->count(3)->forUser($this->user)->create(['status_id' => $this->statusIdFor($this->user, 'To Do'), 'due_date' => null]);
+        Issue::factory()->count(3)->forUser($this->user)->create(['status_id' => $this->statusIdFor($this->user, '未着手'), 'due_date' => null]);
         Issue::factory()->forUser($this->user)->completed()->create();
 
         $totals = $this->actingAs($this->user)->get(route('dashboard'))->viewData('totals');
@@ -52,7 +52,7 @@ class DashboardTest extends TestCase
     public function test_推移は日付が抜けていても連続した系列になる(): void
     {
         Issue::factory()->forUser($this->user)->create([
-            'status_id' => $this->statusIdFor($this->user, 'Done'),
+            'status_id' => $this->statusIdFor($this->user, '完了'),
             'completed_at' => now()->subDays(2),
         ]);
 
@@ -67,7 +67,7 @@ class DashboardTest extends TestCase
     public function test_優先度別の内訳は未完了のみを数える(): void
     {
         Issue::factory()->count(2)->forUser($this->user)->create([
-            'status_id' => $this->statusIdFor($this->user, 'To Do'),
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
             'priority' => TaskPriority::High,
         ]);
         Issue::factory()->forUser($this->user)->completed()->create(['priority' => TaskPriority::High]);
@@ -82,13 +82,26 @@ class DashboardTest extends TestCase
     {
         foreach ([0, 1, 2, 4] as $daysAgo) {
             Issue::factory()->forUser($this->user)->create([
-                'status_id' => $this->statusIdFor($this->user, 'Done'),
+                'status_id' => $this->statusIdFor($this->user, '完了'),
                 'completed_at' => now()->subDays($daysAgo),
             ]);
         }
 
         // 3日前が空いているので、連続は今日から3日分
         $this->assertSame(3, $this->actingAs($this->user)->get(route('dashboard'))->viewData('streak'));
+    }
+
+    public function test_対応が必要な課題は一覧と同じ書き方で期限を示す(): void
+    {
+        Issue::factory()->forUser($this->user)->create([
+            'title' => '遅れている課題',
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
+            'due_date' => today()->subDays(3),
+        ]);
+
+        $this->actingAs($this->user)->get(route('dashboard'))
+            ->assertSee('遅れている課題')
+            ->assertSee('3日超過');
     }
 
     public function test_他人のデータは集計に混ざらない(): void

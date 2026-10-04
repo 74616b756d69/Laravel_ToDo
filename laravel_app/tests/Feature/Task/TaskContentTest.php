@@ -27,7 +27,7 @@ class TaskContentTest extends TestCase
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => 'リッチテキスト',
             'content' => '<p>安全な本文</p><script>alert(1)</script>',
-            'status' => $this->statusIdFor($this->user, 'To Do'),
+            'status' => $this->statusIdFor($this->user, '未着手'),
             'priority' => TaskPriority::Low->value,
         ]);
 
@@ -42,7 +42,7 @@ class TaskContentTest extends TestCase
         $this->actingAs($this->user)->post(route('tasks.store'), [
             'title' => 'リッチテキスト',
             'content' => '<h2>見出し</h2><p>本文です</p>',
-            'status' => $this->statusIdFor($this->user, 'To Do'),
+            'status' => $this->statusIdFor($this->user, '未着手'),
             'priority' => TaskPriority::Low->value,
         ]);
 

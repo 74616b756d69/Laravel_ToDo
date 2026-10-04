@@ -25,12 +25,12 @@ class InstallWorkflows extends Command
 
     /**
      * 旧 TaskStatus の値 → 既定ワークフローのステータス名。
-     * 旧 doing は In Progress に寄せる（In Review には自動では入れない）。
+     * 旧 doing は 進行中 に寄せる（レビュー中 には自動では入れない）。
      */
     private const STATUS_MAP = [
-        'todo' => 'To Do',
-        'doing' => 'In Progress',
-        'done' => 'Done',
+        'todo' => '未着手',
+        'doing' => '進行中',
+        'done' => '完了',
     ];
 
     public function handle(WorkflowService $workflows): int

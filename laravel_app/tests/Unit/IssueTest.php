@@ -56,9 +56,17 @@ class IssueTest extends TestCase
         $this->assertFalse($task->isOverdue());
     }
 
+    public function test_期限までの残り日数を返す(): void
+    {
+        $this->assertSame(0, $this->issue(StatusCategory::Todo, today()->toDateString())->daysUntilDue());
+        $this->assertSame(2, $this->issue(StatusCategory::Todo, today()->addDays(2)->toDateString())->daysUntilDue());
+        $this->assertSame(-13, $this->issue(StatusCategory::Todo, today()->subDays(13)->toDateString())->daysUntilDue());
+        $this->assertNull($this->issue(StatusCategory::Todo, null)->daysUntilDue());
+    }
+
     /**
      * 完了かどうかは名前ではなくカテゴリで決まる。
-     * 「Done」を別名に変えても壊れないことを固定しておく。
+     * 「完了」を別名に変えても壊れないことを固定しておく。
      */
     public function test_完了判定はステータス名に依存しない(): void
     {

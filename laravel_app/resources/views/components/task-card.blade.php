@@ -77,11 +77,12 @@
     --}}
     <div class="flex shrink-0 items-center gap-3 pt-px">
         {{-- 優先度もここに置く。行ごとに位置が動かないほうが、高いものだけを拾いやすい --}}
-        <x-priority-mark :priority="$task->priority" />
+        <x-priority-mark :priority="$task->priority" high-only />
 
-        <span @if ($task->story_points !== null) title="ストーリーポイント" @endif
+        {{-- 0 は「見積り済みでゼロ」だが、一覧で拾う意味は無いので未設定と同じく空けておく --}}
+        <span @if ($task->story_points) title="ストーリーポイント" @endif
               class="hidden w-5 text-right font-mono text-xs text-slate-500 tabular-nums sm:block dark:text-slate-400">
-            {{ $task->story_points }}
+            {{ $task->story_points ?: '' }}
         </span>
 
         <x-avatar :user="$task->assignee" />

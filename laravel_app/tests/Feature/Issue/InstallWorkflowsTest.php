@@ -90,7 +90,7 @@ class InstallWorkflowsTest extends TestCase
         $this->artisan('workflows:install')->assertSuccessful();
 
         $this->assertSame(
-            ['To Do', 'In Progress', 'In Review', 'Done'],
+            ['未着手', '進行中', 'レビュー中', '完了'],
             $this->project->statuses()->pluck('name')->all(),
         );
         $this->assertSame(8, $this->project->transitions()->count());
@@ -106,9 +106,9 @@ class InstallWorkflowsTest extends TestCase
 
         $byName = $this->project->statuses()->get()->keyBy('name');
 
-        $this->assertSame($byName['To Do']->id, (int) DB::table('tasks')->where('id', $todo)->value('status_id'));
-        $this->assertSame($byName['In Progress']->id, (int) DB::table('tasks')->where('id', $doing)->value('status_id'));
-        $this->assertSame($byName['Done']->id, (int) DB::table('tasks')->where('id', $done)->value('status_id'));
+        $this->assertSame($byName['未着手']->id, (int) DB::table('tasks')->where('id', $todo)->value('status_id'));
+        $this->assertSame($byName['進行中']->id, (int) DB::table('tasks')->where('id', $doing)->value('status_id'));
+        $this->assertSame($byName['完了']->id, (int) DB::table('tasks')->where('id', $done)->value('status_id'));
     }
 
     public function test_件数の内訳が保たれる(): void
@@ -222,13 +222,13 @@ class InstallWorkflowsTest extends TestCase
 
         $this->artisan('workflows:install')->assertSuccessful();
 
-        // In Review へ移してから巻き戻す
-        $review = $this->project->statuses()->where('name', 'In Review')->sole();
+        // レビュー中 へ移してから巻き戻す
+        $review = $this->project->statuses()->where('name', 'レビュー中')->sole();
         DB::table('tasks')->where('id', $id)->update(['status_id' => $review->id]);
 
         $this->artisan('workflows:rollback', ['--force' => true])->assertSuccessful();
 
-        // 旧 3 値に In Review は無いので doing に寄る（カテゴリは同じ）
+        // 旧 3 値に レビュー中 は無いので doing に寄る（カテゴリは同じ）
         $this->assertSame('doing', DB::table('tasks')->where('id', $id)->value('status'));
     }
 

@@ -77,14 +77,14 @@ class ActivityTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        app(WorkflowService::class)->transition($this->issue, $this->named('In Progress'));
+        app(WorkflowService::class)->transition($this->issue, $this->named('進行中'));
 
         $activity = $this->activities(ActivityField::Status)->sole();
 
-        $this->assertSame('To Do', $activity->old_value);
-        $this->assertSame('In Progress', $activity->new_value);
+        $this->assertSame('未着手', $activity->old_value);
+        $this->assertSame('進行中', $activity->new_value);
         $this->assertSame($this->user->id, $activity->user_id);
-        $this->assertSame('ステータスを「To Do」から「In Progress」に変更しました。', $activity->describe());
+        $this->assertSame('ステータスを「未着手」から「進行中」に変更しました。', $activity->describe());
     }
 
     public function test_担当者の変更が記録される(): void
@@ -170,7 +170,7 @@ class ActivityTest extends TestCase
 
         // trackedColumns() のキーと、そこに入れる新しい値
         $changes = [
-            'status_id' => $this->named('In Progress')->id,
+            'status_id' => $this->named('進行中')->id,
             'assignee_id' => $assignee->id,
             'priority' => TaskPriority::High,
             'sprint_id' => $sprint->id,
@@ -261,8 +261,8 @@ class ActivityTest extends TestCase
 
         $activity = $this->activities(ActivityField::Status)->sole();
 
-        $this->assertSame('To Do', $activity->old_value);
-        $this->assertSame('Done', $activity->new_value);
+        $this->assertSame('未着手', $activity->old_value);
+        $this->assertSame('完了', $activity->new_value);
         $this->assertSame($this->user->id, $activity->user_id);
     }
 

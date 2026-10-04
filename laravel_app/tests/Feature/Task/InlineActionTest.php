@@ -42,21 +42,21 @@ class InlineActionTest extends TestCase
 
     public function test_詳細画面に次に行ける遷移だけが並ぶ(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $transitions = $this->actingAs($this->user)
             ->get(route('tasks.show', $task))
             ->assertOk()
             ->viewData('transitions');
 
-        // 既定ワークフローでは To Do → In Review だけが禁止されている
-        $this->assertSame(['In Progress', 'Done'], $transitions->pluck('name')->all());
+        // 既定ワークフローでは 未着手 → レビュー中 だけが禁止されている
+        $this->assertSame(['進行中', '完了'], $transitions->pluck('name')->all());
     }
 
     public function test_遷移ボタンでステータスが変わる(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
-        $target = $this->statusFor($this->user, 'In Progress');
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
+        $target = $this->statusFor($this->user, '進行中');
 
         $this->actingAs($this->user)
             ->from(route('tasks.show', $task))
@@ -68,22 +68,22 @@ class InlineActionTest extends TestCase
 
     public function test_完了ステータスへ遷移すると完了日時が入る(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'In Progress')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '進行中')]);
 
         $this->actingAs($this->user)
-            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'Done')]);
+            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, '完了')]);
 
         $this->assertNotNull($task->refresh()->completed_at);
     }
 
     public function test_禁止された遷移は理由を返して状態を変えない(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
         $before = $task->status_id;
 
         $this->actingAs($this->user)
             ->from(route('tasks.show', $task))
-            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'In Review')])
+            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'レビュー中')])
             ->assertRedirect(route('tasks.show', $task))
             ->assertSessionHasErrors('status');
 
@@ -92,10 +92,10 @@ class InlineActionTest extends TestCase
 
     public function test_禁止された遷移はJSONでは422を返す(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $this->actingAs($this->user)
-            ->patchJson(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'In Review')])
+            ->patchJson(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'レビュー中')])
             ->assertStatus(422);
     }
 
@@ -111,16 +111,16 @@ class InlineActionTest extends TestCase
 
     public function test_遷移は履歴に残る(): void
     {
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $this->actingAs($this->user)
-            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'In Progress')]);
+            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, '進行中')]);
 
         $this->assertDatabaseHas('activities', [
             'issue_id' => $task->id,
             'field' => ActivityField::Status->value,
-            'old_value' => 'To Do',
-            'new_value' => 'In Progress',
+            'old_value' => '未着手',
+            'new_value' => '進行中',
         ]);
     }
 
@@ -129,10 +129,10 @@ class InlineActionTest extends TestCase
         $viewer = User::factory()->create();
         $this->project->members()->create(['user_id' => $viewer->id, 'role' => ProjectRole::Viewer]);
 
-        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $task = $this->issue(['status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $this->actingAs($viewer)
-            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, 'In Progress')])
+            ->patch(route('tasks.transition', $task), ['status' => $this->statusIdFor($this->user, '進行中')])
             ->assertForbidden();
     }
 

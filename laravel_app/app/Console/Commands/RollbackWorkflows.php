@@ -90,11 +90,12 @@ class RollbackWorkflows extends Command
 
         $inReview = DB::table('tasks')
             ->join('statuses', 'statuses.id', '=', 'tasks.status_id')
-            ->where('statuses.name', 'In Review')
+            // 日本語化（2026_10_04_110000）の前後どちらの名前でも数える
+            ->whereIn('statuses.name', ['In Review', 'レビュー中'])
             ->count();
 
         if ($inReview > 0) {
-            $this->warn("In Review に居た {$inReview} 件は doing に寄せました（旧 3 値に対応する値が無いため）。");
+            $this->warn("レビュー中に居た {$inReview} 件は doing に寄せました（旧 3 値に対応する値が無いため）。");
         }
     }
 }

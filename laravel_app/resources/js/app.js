@@ -30,7 +30,8 @@ document.addEventListener('submit', (event) => {
  */
 document.querySelectorAll('form[data-auto-submit]').forEach((form) => {
     form.addEventListener('change', (event) => {
-        if (event.target.type !== 'search') {
+        // name の無い入力（パネルの開閉トグルなど）は送信する値を持たないので無視する
+        if (event.target.name && event.target.type !== 'search') {
             form.requestSubmit();
         }
     });
@@ -146,11 +147,15 @@ document.addEventListener('toggle', (event) => {
  *
  * event.detail が 0 のクリックはキーボード（Enter / Space）から来たもの。
  * こちらは details の既定どおり開かせる。ダブルクリックの代わりが要る。
+ *
+ * data-single-click の欄（1 行の値をその場で置き換える欄）は選びたい文字が無いので、
+ * 既定どおり 1 クリックで開かせる。
  */
 document.addEventListener('click', (event) => {
     const summary = event.target.closest('summary');
+    const details = summary?.parentElement;
 
-    if (summary?.parentElement?.matches('[data-inline-edit]') && event.detail > 0) {
+    if (details?.matches('[data-inline-edit]:not([data-single-click])') && event.detail > 0) {
         event.preventDefault();
     }
 });

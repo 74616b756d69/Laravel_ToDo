@@ -93,7 +93,7 @@ class IssueNotificationTest extends TestCase
 
         $this->actingAs($this->owner)->post(route('tasks.store'), [
             'title' => 'レビューをお願いします',
-            'status' => $this->named('To Do')->id,
+            'status' => $this->named('未着手')->id,
             'priority' => 'medium',
             'assignee' => $this->member->id,
         ]);
@@ -111,13 +111,13 @@ class IssueNotificationTest extends TestCase
         $this->issue->watch($this->member);
 
         $this->actingAs($this->owner)
-            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('In Progress')->id]);
+            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('進行中')->id]);
 
         Notification::assertSentTo(
             $this->member,
             IssueTransitionedNotification::class,
             fn (IssueTransitionedNotification $notification, array $channels) => $channels === ['database']
-                && $notification->payload['message'] === '管理者さんがステータスを「To Do」から「In Progress」に変更しました。',
+                && $notification->payload['message'] === '管理者さんがステータスを「未着手」から「進行中」に変更しました。',
         );
         // 起票者として自動でウォッチしているが、自分の操作なので届かない
         Notification::assertNotSentTo($this->owner, IssueTransitionedNotification::class);
@@ -128,7 +128,7 @@ class IssueNotificationTest extends TestCase
         Notification::fake();
 
         $this->actingAs($this->owner)
-            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('In Progress')->id]);
+            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('進行中')->id]);
 
         Notification::assertNotSentTo($this->member, IssueTransitionedNotification::class);
     }
@@ -140,7 +140,7 @@ class IssueNotificationTest extends TestCase
         $this->issue->watch($outsider);
 
         $this->actingAs($this->owner)
-            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('In Progress')->id]);
+            ->patch(route('tasks.transition', $this->issue), ['status' => $this->named('進行中')->id]);
 
         Notification::assertNotSentTo($outsider, IssueTransitionedNotification::class);
     }
@@ -173,7 +173,7 @@ class IssueNotificationTest extends TestCase
 
         // 移行コマンドやシーダーと同じく、ログインしていない状態で動かす
         app(IssueAssignmentService::class)->assign($this->issue, $this->member);
-        app(WorkflowService::class)->transition($this->issue->fresh(), $this->named('In Progress'));
+        app(WorkflowService::class)->transition($this->issue->fresh(), $this->named('進行中'));
 
         Notification::assertNothingSent();
     }

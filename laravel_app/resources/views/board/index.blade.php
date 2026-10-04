@@ -44,11 +44,12 @@
                         {{ $lane['status']->name }}
                     </h2>
                     <span class="font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400"
-                          data-lane-count="{{ $key }}">{{ $lane['tasks']->count() }}</span>
+                          data-lane-count="{{ $key }}">{{ $lane['tasks']->count() + $lane['hidden'] }}</span>
                 </header>
 
                 {{-- data-lane の値がドロップ先のステータスになる --}}
                 <ul data-lane="{{ $key }}" data-lane-name="{{ $lane['status']->name }}"
+                    data-lane-hidden="{{ $lane['hidden'] }}"
                     class="flex min-h-32 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain p-2">
                     @foreach ($lane['tasks'] as $task)
                         <li id="task-{{ $task->id }}" data-task-id="{{ $task->id }}"
@@ -87,13 +88,13 @@
                                 <x-due-date :issue="$task" class="ml-1" />
 
                                 <span class="ml-auto flex shrink-0 items-center gap-2">
-                                    @if ($task->story_points !== null)
+                                    @if ($task->story_points)
                                         <span title="ストーリーポイント"
                                               class="grid h-5 min-w-5 place-items-center rounded-full bg-slate-100 px-1 font-mono text-[10px] text-slate-600 tabular-nums dark:bg-white/10 dark:text-slate-300">
                                             {{ $task->story_points }}
                                         </span>
                                     @endif
-                                    <x-priority-mark :priority="$task->priority" />
+                                    <x-priority-mark :priority="$task->priority" high-only />
                                     <x-avatar :user="$task->assignee" />
                                 </span>
                             </div>
@@ -105,6 +106,14 @@
                         ここにドロップ
                     </li>
                 </ul>
+
+                {{-- 完了レーンで省いた分。件数だけ示して、全件は一覧（このステータスで絞り込み）へ --}}
+                @if ($lane['hidden'] > 0)
+                    <a href="{{ route('tasks.index', ['status' => $key]) }}"
+                       class="mx-2 mb-1 shrink-0 rounded-md px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                        ほか <span class="font-mono tabular-nums">{{ $lane['hidden'] }}</span> 件を一覧で見る →
+                    </a>
+                @endif
 
                 {{--
                     レーンごとの追加フォーム。details/summary を使うことで

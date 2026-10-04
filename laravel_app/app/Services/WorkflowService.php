@@ -26,31 +26,31 @@ class WorkflowService
      *
      * 遷移をあえて全許可にしていないのは、ワークフローが設定できること自体が
      * このフェーズの主題だから。一方で「一覧から 1 クリックで完了」は
-     * 移行前からある動線なので、To Do → Done は通してある。
+     * 移行前からある動線なので、未着手 → 完了 は通してある。
      */
     public const DEFAULT_STATUSES = [
-        ['name' => 'To Do', 'category' => StatusCategory::Todo],
-        ['name' => 'In Progress', 'category' => StatusCategory::InProgress],
-        ['name' => 'In Review', 'category' => StatusCategory::InProgress],
-        ['name' => 'Done', 'category' => StatusCategory::Done],
+        ['name' => '未着手', 'category' => StatusCategory::Todo],
+        ['name' => '進行中', 'category' => StatusCategory::InProgress],
+        ['name' => 'レビュー中', 'category' => StatusCategory::InProgress],
+        ['name' => '完了', 'category' => StatusCategory::Done],
     ];
 
     /**
      * 既定の遷移。null は「どのステータスからでも」。
      *
-     * 禁止されるのは To Do → In Review と Done → In Review の 2 本。
+     * 禁止されるのは 未着手 → レビュー中 と 完了 → レビュー中 の 2 本。
      * 「着手していないものをレビューに出す」「完了したものをレビューに戻す」を防ぐ。
      */
     public const DEFAULT_TRANSITIONS = [
         // いつでも差し戻せる（global transition）
-        [null, 'To Do'],
-        ['To Do', 'In Progress'],
-        ['To Do', 'Done'],
-        ['In Progress', 'In Review'],
-        ['In Progress', 'Done'],
-        ['In Review', 'In Progress'],
-        ['In Review', 'Done'],
-        ['Done', 'In Progress'],
+        [null, '未着手'],
+        ['未着手', '進行中'],
+        ['未着手', '完了'],
+        ['進行中', 'レビュー中'],
+        ['進行中', '完了'],
+        ['レビュー中', '進行中'],
+        ['レビュー中', '完了'],
+        ['完了', '進行中'],
     ];
 
     /**
@@ -134,7 +134,7 @@ class WorkflowService
      *
      * 完了時刻の面倒もここで見る。カテゴリが done のステータスに入ったら打刻し、
      * 出たら消す。名前ではなくカテゴリで判断するので、
-     * 「Done」を「リリース済み」に改名しても壊れない。
+     * 「完了」を「リリース済み」に改名しても壊れない。
      */
     public function transition(Issue $issue, Status $to): Issue
     {

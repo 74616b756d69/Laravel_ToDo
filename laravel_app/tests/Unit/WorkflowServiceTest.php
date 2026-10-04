@@ -15,7 +15,7 @@ use Tests\TestCase;
 /**
  * ワークフローの遷移マトリクスを網羅する。
  *
- * 既定のワークフロー（To Do / In Progress / In Review / Done）の
+ * 既定のワークフロー（未着手 / 進行中 / レビュー中 / 完了）の
  * 4 × 4 = 16 通りすべてについて、許可・不許可を 1 件ずつ確かめる。
  * 表を書き換えたらここが落ちるので、意図しない緩和に気づける。
  */
@@ -57,39 +57,39 @@ class WorkflowServiceTest extends TestCase
      * 同じステータスへの「移動」は遷移ではないので常に許可（レーン内の並べ替え）。
      *
      * 禁止しているのは 2 本だけ:
-     *  - To Do → In Review … 着手していないものをレビューに出せない
-     *  - Done  → In Review … 完了したものをレビューに戻せない
+     *  - 未着手 → レビュー中 … 着手していないものをレビューに出せない
+     *  - 完了  → レビュー中 … 完了したものをレビューに戻せない
      *
      * @return array<string, array<string, bool>>
      */
     public static function matrix(): array
     {
         return [
-            //            To Do  In Progress  In Review  Done
-            'To Do' => ['To Do' => true, 'In Progress' => true, 'In Review' => false, 'Done' => true],
-            'In Progress' => ['To Do' => true, 'In Progress' => true, 'In Review' => true, 'Done' => true],
-            'In Review' => ['To Do' => true, 'In Progress' => true, 'In Review' => true, 'Done' => true],
-            'Done' => ['To Do' => true, 'In Progress' => true, 'In Review' => false, 'Done' => true],
+            //            未着手  進行中  レビュー中  完了
+            '未着手' => ['未着手' => true, '進行中' => true, 'レビュー中' => false, '完了' => true],
+            '進行中' => ['未着手' => true, '進行中' => true, 'レビュー中' => true, '完了' => true],
+            'レビュー中' => ['未着手' => true, '進行中' => true, 'レビュー中' => true, '完了' => true],
+            '完了' => ['未着手' => true, '進行中' => true, 'レビュー中' => false, '完了' => true],
         ];
     }
 
     public function test_既定のワークフローが4つのステータスを作る(): void
     {
         $this->assertSame(
-            ['To Do', 'In Progress', 'In Review', 'Done'],
+            ['未着手', '進行中', 'レビュー中', '完了'],
             $this->project->statuses()->pluck('name')->all(),
         );
 
-        $this->assertSame(StatusCategory::Todo, $this->named('To Do')->category);
-        $this->assertSame(StatusCategory::InProgress, $this->named('In Progress')->category);
-        $this->assertSame(StatusCategory::InProgress, $this->named('In Review')->category);
-        $this->assertSame(StatusCategory::Done, $this->named('Done')->category);
+        $this->assertSame(StatusCategory::Todo, $this->named('未着手')->category);
+        $this->assertSame(StatusCategory::InProgress, $this->named('進行中')->category);
+        $this->assertSame(StatusCategory::InProgress, $this->named('レビュー中')->category);
+        $this->assertSame(StatusCategory::Done, $this->named('完了')->category);
     }
 
     public function test_初期ステータスと完了ステータスが決まる(): void
     {
-        $this->assertSame($this->named('To Do')->id, $this->project->initialStatus()->id);
-        $this->assertSame($this->named('Done')->id, $this->project->doneStatus()->id);
+        $this->assertSame($this->named('未着手')->id, $this->project->initialStatus()->id);
+        $this->assertSame($this->named('完了')->id, $this->project->doneStatus()->id);
     }
 
     /**
@@ -145,16 +145,16 @@ class WorkflowServiceTest extends TestCase
 
     public function test_禁止された遷移は理由の分かる例外になる(): void
     {
-        $issue = $this->issueAt('To Do');
+        $issue = $this->issueAt('未着手');
 
         try {
-            $this->workflows->transition($issue, $this->named('In Review'));
+            $this->workflows->transition($issue, $this->named('レビュー中'));
             $this->fail('例外が投げられませんでした');
         } catch (IllegalTransitionException $e) {
-            $this->assertStringContainsString('To Do', $e->getMessage());
-            $this->assertStringContainsString('In Review', $e->getMessage());
-            $this->assertSame('To Do', $e->from->name);
-            $this->assertSame('In Review', $e->to->name);
+            $this->assertStringContainsString('未着手', $e->getMessage());
+            $this->assertStringContainsString('レビュー中', $e->getMessage());
+            $this->assertSame('未着手', $e->from->name);
+            $this->assertSame('レビュー中', $e->to->name);
         }
     }
 
@@ -175,11 +175,11 @@ class WorkflowServiceTest extends TestCase
         // from_status_id が null の 1 本だけで、3 方向の差し戻しを賄っている
         $global = $this->project->transitions()->whereNull('from_status_id')->sole();
 
-        $this->assertSame($this->named('To Do')->id, $global->to_status_id);
+        $this->assertSame($this->named('未着手')->id, $global->to_status_id);
         $this->assertTrue($global->isGlobal());
 
-        foreach (['In Progress', 'In Review', 'Done'] as $from) {
-            $this->assertTrue($this->workflows->allows($this->issueAt($from), $this->named('To Do')));
+        foreach (['進行中', 'レビュー中', '完了'] as $from) {
+            $this->assertTrue($this->workflows->allows($this->issueAt($from), $this->named('未着手')));
         }
     }
 
@@ -187,32 +187,32 @@ class WorkflowServiceTest extends TestCase
     {
         $this->project->transitions()->whereNull('from_status_id')->delete();
 
-        // Done → To Do はこの 1 本に頼っていたので、消すと通らなくなる
-        $this->assertFalse($this->workflows->allows($this->issueAt('Done'), $this->named('To Do')));
+        // 完了 → 未着手 はこの 1 本に頼っていたので、消すと通らなくなる
+        $this->assertFalse($this->workflows->allows($this->issueAt('完了'), $this->named('未着手')));
         // 個別に定義されている遷移は残る
-        $this->assertTrue($this->workflows->allows($this->issueAt('To Do'), $this->named('In Progress')));
+        $this->assertTrue($this->workflows->allows($this->issueAt('未着手'), $this->named('進行中')));
     }
 
     // --- 行き先の一覧 ---------------------------------------------------------
 
     public function test_いま行ける先だけが返る(): void
     {
-        // To Do から In Review へは行けない。現在地の To Do も含まない
+        // 未着手 から レビュー中 へは行けない。現在地の 未着手 も含まない
         $this->assertSame(
-            ['In Progress', 'Done'],
-            $this->workflows->availableFor($this->issueAt('To Do'))->pluck('name')->all(),
+            ['進行中', '完了'],
+            $this->workflows->availableFor($this->issueAt('未着手'))->pluck('name')->all(),
         );
 
-        // Done から In Review へも戻れない
+        // 完了 から レビュー中 へも戻れない
         $this->assertSame(
-            ['To Do', 'In Progress'],
-            $this->workflows->availableFor($this->issueAt('Done'))->pluck('name')->all(),
+            ['未着手', '進行中'],
+            $this->workflows->availableFor($this->issueAt('完了'))->pluck('name')->all(),
         );
 
-        // In Progress からはどこへでも行ける
+        // 進行中 からはどこへでも行ける
         $this->assertSame(
-            ['To Do', 'In Review', 'Done'],
-            $this->workflows->availableFor($this->issueAt('In Progress'))->pluck('name')->all(),
+            ['未着手', 'レビュー中', '完了'],
+            $this->workflows->availableFor($this->issueAt('進行中'))->pluck('name')->all(),
         );
     }
 
@@ -246,9 +246,9 @@ class WorkflowServiceTest extends TestCase
     public function test_別プロジェクトのステータスへは移せない(): void
     {
         $other = Project::factory()->create();
-        $otherTodo = $other->statuses()->where('name', 'In Progress')->sole();
+        $otherTodo = $other->statuses()->where('name', '進行中')->sole();
 
-        $issue = $this->issueAt('To Do');
+        $issue = $this->issueAt('未着手');
 
         // 同名・同カテゴリでも、別プロジェクトのステータスなら拒否する
         $this->assertFalse($this->workflows->allows($issue, $otherTodo));
@@ -266,9 +266,9 @@ class WorkflowServiceTest extends TestCase
     public function test_ステータス名を変えても遷移は保たれる(): void
     {
         // 遷移は ID で結ばれているので、名前の変更に影響されない
-        $this->named('Done')->update(['name' => 'リリース済み']);
+        $this->named('完了')->update(['name' => 'リリース済み']);
 
-        $issue = $this->issueAt('In Progress');
+        $issue = $this->issueAt('進行中');
         $released = $this->project->statuses()->where('name', 'リリース済み')->sole();
 
         $this->assertTrue($this->workflows->allows($issue, $released));
@@ -279,31 +279,31 @@ class WorkflowServiceTest extends TestCase
 
     public function test_完了カテゴリに入ると完了時刻が入る(): void
     {
-        $issue = $this->issueAt('In Progress');
+        $issue = $this->issueAt('進行中');
         $issue->forceFill(['completed_at' => null])->save();
 
-        $this->workflows->transition($issue, $this->named('Done'));
+        $this->workflows->transition($issue, $this->named('完了'));
 
         $this->assertNotNull($issue->fresh()->completed_at);
     }
 
     public function test_完了カテゴリから出ると完了時刻が消える(): void
     {
-        $issue = $this->issueAt('Done');
+        $issue = $this->issueAt('完了');
 
-        $this->workflows->transition($issue, $this->named('In Progress'));
+        $this->workflows->transition($issue, $this->named('進行中'));
 
         $this->assertNull($issue->fresh()->completed_at);
     }
 
     public function test_完了のまま別の完了ステータスへ移っても打刻は変わらない(): void
     {
-        $issue = $this->issueAt('Done');
+        $issue = $this->issueAt('完了');
         $first = $issue->completed_at;
 
-        // In Review は進行中カテゴリなので、いったん Done → In Progress → Done
-        $this->workflows->transition($issue, $this->named('In Progress'));
-        $this->workflows->transition($issue, $this->named('Done'));
+        // レビュー中 は進行中カテゴリなので、いったん 完了 → 進行中 → 完了
+        $this->workflows->transition($issue, $this->named('進行中'));
+        $this->workflows->transition($issue, $this->named('完了'));
 
         // 一度カテゴリを出ているので打刻し直される
         $this->assertNotNull($issue->fresh()->completed_at);
@@ -314,25 +314,25 @@ class WorkflowServiceTest extends TestCase
 
     public function test_完了トグルは完了ステータスと初期ステータスを往復する(): void
     {
-        $issue = $this->issueAt('To Do');
+        $issue = $this->issueAt('未着手');
 
         $this->workflows->toggleCompletion($issue);
-        $this->assertSame($this->named('Done')->id, $issue->fresh()->status_id);
+        $this->assertSame($this->named('完了')->id, $issue->fresh()->status_id);
 
         $this->workflows->toggleCompletion($issue);
-        $this->assertSame($this->named('To Do')->id, $issue->fresh()->status_id);
+        $this->assertSame($this->named('未着手')->id, $issue->fresh()->status_id);
     }
 
     public function test_完了トグルもワークフローの検査を受ける(): void
     {
-        // To Do → Done を塞ぐと、1 クリック完了も通らなくなる
+        // 未着手 → 完了 を塞ぐと、1 クリック完了も通らなくなる
         $this->project->transitions()
-            ->where('from_status_id', $this->named('To Do')->id)
-            ->where('to_status_id', $this->named('Done')->id)
+            ->where('from_status_id', $this->named('未着手')->id)
+            ->where('to_status_id', $this->named('完了')->id)
             ->delete();
 
         $this->expectException(IllegalTransitionException::class);
 
-        $this->workflows->toggleCompletion($this->issueAt('To Do'));
+        $this->workflows->toggleCompletion($this->issueAt('未着手'));
     }
 }

@@ -35,28 +35,16 @@
 
         <x-input-error :messages="$errors->get('quick')" />
 
+        {{--
+            書き方の手引きは常に出しておく。入力中だけ出すと、入力欄は自動でフォーカスされるため
+            ほかを押した瞬間に手引きが消えて下の要素がずれ、押したつもりの場所を外してしまう。
+        --}}
         <p class="mt-1 text-xs text-slate-400">
             <code class="text-slate-500 dark:text-slate-400">#タグ</code>
             <code class="ml-2 text-slate-500 dark:text-slate-400">!高 / !中 / !低</code>
             <span class="ml-2">日付（明日・来週金曜・3日後・9/25 など）を書くと自動で設定されます</span>
         </p>
     </form>
-
-    {{-- 件数の升目。クリックでそのままフィルタとしても働く --}}
-    <div class="surface mb-3 grid grid-cols-2 divide-x divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 sm:grid-cols-4 sm:divide-y-0 dark:divide-slate-800 dark:border-slate-800">
-        <x-stat-card label="すべて" :value="$summary['total']"
-                     :href="route('tasks.index')"
-                     :active="! $filters['status'] && ! $filters['category'] && ! $filters['overdue']" />
-        {{-- ステータス名はプロジェクトごとに違うので、カードはカテゴリで絞る --}}
-        <x-stat-card label="未着手" :value="$summary['todo']" accent="text-slate-600 dark:text-slate-300"
-                     :href="route('tasks.index', ['category' => 'todo'])"
-                     :active="$filters['category']?->value === 'todo'" />
-        <x-stat-card label="進行中" :value="$summary['in_progress']" accent="text-sky-600 dark:text-sky-300"
-                     :href="route('tasks.index', ['category' => 'in_progress'])"
-                     :active="$filters['category']?->value === 'in_progress'" />
-        <x-stat-card label="期限切れ" :value="$summary['overdue']" accent="text-rose-600 dark:text-rose-400"
-                     :href="route('tasks.index', ['overdue' => 1])" :active="$filters['overdue']" />
-    </div>
 
     @php
         /*
@@ -83,14 +71,35 @@
     @endphp
 
     {{--
-        絞り込み。よく使うキーワードと並び替えだけを常時出し、
-        残りは「詳細な絞り込み」へ畳む。選択のたびに JS で自動送信し、
+        絞り込み。件数タブ・キーワード・並び替えを 1 行にまとめ、
+        残りは「絞り込み」へ畳む。選択のたびに JS で自動送信し、
         JS 無効でも「適用」で送れる。
+
+        畳む仕組みは details ではなく、名前の無いチェックボックス + peer にしている。
+        開閉ボタンを行の中に置いたまま、パネルだけを行の下に全幅で出すため。
     --}}
     <form action="{{ route('tasks.index') }}" method="GET" data-auto-submit
-          class="surface mb-3 rounded-md border border-slate-200 p-2.5 dark:border-slate-800">
+          class="surface group mb-3 rounded-md border border-slate-200 p-2 dark:border-slate-800">
+        <input type="checkbox" id="filter-more" class="peer sr-only" @checked($foldedCount > 0)>
+
         <div class="flex flex-wrap items-center gap-2">
-            <label class="relative min-w-52 flex-1">
+            {{-- ステータス名はプロジェクトごとに違うので、タブはカテゴリで絞る --}}
+            <nav aria-label="状態で絞り込む"
+                 class="flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-md bg-slate-100 p-0.5 dark:bg-white/5">
+                <x-stat-card label="すべて" :value="$summary['total']"
+                             :href="route('tasks.index')"
+                             :active="! $filters['status'] && ! $filters['category'] && ! $filters['overdue']" />
+                <x-stat-card label="未着手" :value="$summary['todo']" accent="text-slate-600 dark:text-slate-300"
+                             :href="route('tasks.index', ['category' => 'todo'])"
+                             :active="$filters['category']?->value === 'todo'" />
+                <x-stat-card label="進行中" :value="$summary['in_progress']" accent="text-sky-600 dark:text-sky-300"
+                             :href="route('tasks.index', ['category' => 'in_progress'])"
+                             :active="$filters['category']?->value === 'in_progress'" />
+                <x-stat-card label="期限切れ" :value="$summary['overdue']" accent="text-rose-600 dark:text-rose-400"
+                             :href="route('tasks.index', ['overdue' => 1])" :active="$filters['overdue']" />
+            </nav>
+
+            <label class="relative min-w-48 flex-1">
                 <span class="sr-only">キーワード検索</span>
                 <x-icon name="search" class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                 <input type="search" name="keyword" value="{{ $filters['keyword'] }}"
@@ -105,19 +114,20 @@
                     @endforeach
                 </select>
             </label>
-        </div>
 
-        {{-- 条件が効いているときは、畳んだままでも中身が分かるよう開いておく --}}
-        <details class="mt-3" @if ($foldedCount > 0) open @endif>
-            <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            <label for="filter-more"
+                   class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm text-slate-500 transition select-none hover:bg-slate-100 hover:text-slate-900 group-has-[#filter-more:checked]:bg-slate-100 group-has-[#filter-more:checked]:text-slate-900 group-has-[#filter-more:focus-visible]:ring-2 group-has-[#filter-more:focus-visible]:ring-brand-500 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white dark:group-has-[#filter-more:checked]:bg-white/10 dark:group-has-[#filter-more:checked]:text-white">
                 <x-icon name="filter" class="size-4" />
-                詳細な絞り込み
+                絞り込み
                 @if ($foldedCount > 0)
                     <span class="rounded-sm bg-slate-200 px-1.5 font-mono text-xs font-medium text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-200">{{ $foldedCount }}</span>
                 @endif
-            </summary>
+            </label>
+        </div>
 
-            <div class="mt-3 space-y-3 border-t border-slate-100 pt-3 dark:border-white/5">
+        {{-- 条件が効いているときは、畳んだままでも中身が分かるよう開いておく --}}
+        <div class="hidden peer-checked:block">
+            <div class="mt-2 space-y-3 border-t border-slate-100 px-1 pt-3 dark:border-white/5">
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     @if ($projects->count() > 1)
                         {{-- 一覧は横断ビューのまま。プロジェクトは絞り込みの 1 つとして足す --}}
@@ -193,10 +203,10 @@
                     <button type="submit" class="btn-quiet ml-auto">適用</button>
                 </div>
             </div>
-        </details>
+        </div>
 
         @if ($activeFilters->isNotEmpty())
-            <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-white/5">
+            <div class="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-1 pt-2 dark:border-white/5">
                 <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">絞り込み中:</span>
                 @foreach ($activeFilters as $filter)
                     {{-- バッジ自体が解除ボタン。1 つずつ外せる --}}

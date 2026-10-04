@@ -44,7 +44,7 @@ class SubIssueTest extends TestCase
             'project_id' => $this->task->project_id,
             'issue_type' => IssueType::Subtask->value,
             'title' => '資料を集める',
-            'status_id' => $this->statusIdFor($this->user, 'To Do'),
+            'status_id' => $this->statusIdFor($this->user, '未着手'),
         ]);
     }
 
@@ -95,7 +95,7 @@ class SubIssueTest extends TestCase
 
     public function test_完了状態を切り替えられる(): void
     {
-        $child = Issue::factory()->childOf($this->task)->create(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        $child = Issue::factory()->childOf($this->task)->create(['status_id' => $this->statusIdFor($this->user, '未着手')]);
 
         $this->actingAs($this->user)->patch(route('subtasks.toggle', [$this->task, $child]));
         $this->assertTrue($child->fresh()->isCompleted());
@@ -180,7 +180,7 @@ class SubIssueTest extends TestCase
 
     public function test_進捗率が計算される(): void
     {
-        Issue::factory()->count(3)->childOf($this->task)->create(['status_id' => $this->statusIdFor($this->user, 'To Do')]);
+        Issue::factory()->count(3)->childOf($this->task)->create(['status_id' => $this->statusIdFor($this->user, '未着手')]);
         Issue::factory()->childOf($this->task)->completed()->create();
 
         $this->assertSame(25, $this->task->load('children.status')->progress());

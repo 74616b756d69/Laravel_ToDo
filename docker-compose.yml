@@ -19,6 +19,9 @@ services:
       DB_DATABASE: dev
       DB_USERNAME: root
       DB_PASSWORD: password
+    volumes:
+      # 発行したアプリケーションキーを保存しておく場所（queue と共有する）
+      - app_state:/workdir/state
     depends_on:
       db:
         condition: service_healthy
@@ -38,6 +41,8 @@ services:
       <<: *app-env
       # マイグレーションとシードは app コンテナが受け持つ（同時に流すと競合する）
       CONTAINER_ROLE: worker
+    volumes:
+      - app_state:/workdir/state
     depends_on:
       app:
         condition: service_healthy
@@ -60,3 +65,4 @@ services:
 
 volumes:
   mysql_data:
+  app_state:
