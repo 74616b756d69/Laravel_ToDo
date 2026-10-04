@@ -6,7 +6,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.3-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-517_passed-3FB950?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-682_passed-3FB950?style=flat-square)
 
 ---
 
@@ -45,7 +45,16 @@
 | **絞り込み・並び替え** | キーワード（タイトル・本文）／ステータス／優先度／タグ／期限切れのみ。10 件ごとのページネーション |
 | **リッチテキスト** | 見出し・太字・リスト・**チェックリスト**・引用・コード・リンクを本文に記述（Tiptap） |
 | **タグ管理** | 色付きタグの作成・編集・削除（多対多） |
-| **分析ダッシュボード** | 進行中スプリントのバーンダウン・日別の完了数推移・完了率・優先度別の内訳・連続達成日数・期限が近い課題 |
+| **分析ダッシュボード** | 進行中スプリントのバーンダウン・**ベロシティ**（約束と完了）・日別の完了数推移・完了率・優先度別の内訳・今週の作業時間・期限が近い課題 |
+| **@メンション** | 説明やコメントで `@` を打つとメンバーの候補が出る。メンションされた人にはアプリ内とメールで通知 |
+| **添付ファイル** | ドラッグ＆ドロップ・ファイル選択・エディタへの画像の貼り付けで添付。画像は本文に埋め込める |
+| **Webhook / Slack** | 課題の作成・ステータス変更・担当変更・コメントを、署名付き JSON か Slack 形式で外部へ送信。配信履歴と再送つき |
+| **条件式検索・保存フィルター** | `assignee:me status:進行中 due<7d -tag:後回し` のような条件式で絞り込み、名前を付けて保存 |
+| **作業時間** | 課題ごとの見積もり時間と、作業記録（`1h30m` のように入力）の積み上げ。超過を表示 |
+| **CSV** | 一覧の絞り込み結果をそのまま CSV に書き出し。CSV からの一括取り込み（Excel の Shift_JIS 対応） |
+| **REST API** | 個人アクセストークン（Sanctum、`read` / `write` 権限・有効期限つき）で課題とコメントを読み書き。[OpenAPI 仕様](docs/openapi.yaml) |
+| **リアルタイム更新** | ほかの人が課題を動かすと、開いているボードがその場で更新される（Laravel Reverb） |
+| **キーボードショートカット** | `?` で一覧、`/` で検索、`c` で作成、`g` → `b` でボードへ など |
 | ユーザー認証 | 新規登録 / ログイン / ログアウト（ログイン試行回数の制限つき） |
 | ダークモード | OS 設定に追従しつつ、手動切り替えも可能（選択は端末に保存） |
 | **デモアカウント** | ログイン画面から 1 クリックで、課題 100 件・スプリント入りのアカウントを体験可能 |
@@ -58,12 +67,15 @@
 |---|---|
 | バックエンド | PHP 8.4 / Laravel 12 |
 | フロントエンド | Blade / Tailwind CSS v4 / Vite / Vanilla JS |
-| エディタ | Tiptap v3（ProseMirror）+ HTMLPurifier によるサーバー側サニタイズ |
+| エディタ | Tiptap v3（ProseMirror。Mention / Image 拡張）+ HTMLPurifier によるサーバー側サニタイズ |
+| API | Laravel Sanctum（個人アクセストークン）/ API Resources / OpenAPI 3.1 |
+| リアルタイム | Laravel Reverb（WebSocket）+ Laravel Echo |
 | ドラッグ&ドロップ | SortableJS |
 | データベース | MySQL 8.3（ローカル開発・テストは SQLite） |
-| テスト | PHPUnit 11（Feature 451 件 / Unit 66 件） |
+| テスト | PHPUnit 11（Feature 614 件 / Unit 68 件） |
 | 品質管理 | Laravel Pint / GitHub Actions |
-| 非同期処理 | Laravel Queue（database ドライバ）。通知メールはキュー経由で送信 |
+| 非同期処理 | Laravel Queue（database ドライバ）。通知メール・Webhook の配信・CSV の取り込み・リアルタイム配信はキュー経由 |
+| 定期実行 | Laravel Scheduler（古い Webhook 配信履歴の掃除） |
 | 実行環境 | Docker / Docker Compose |
 
 ---
@@ -112,7 +124,7 @@ User ── Notification（アプリ内通知）
 ### 3. 通知はイベントから組み立てる
 課題の変更は `IssueObserver` からドメインイベント（`IssueCreated` / `IssueTransitioned` / `IssueAssigned` / `CommentPosted`）として発行し、
 通知やウォッチの追加はリスナーが受け持ちます。変更履歴と同じ「モデルが変わったら必ず通る場所」から出すので、
-新しい書き込み経路を足しても通知だけ漏れる、ということが起きません。今後の外部連携（Slack・Webhook）も同じイベントに乗せる想定です。
+新しい書き込み経路を足しても通知だけ漏れる、ということが起きません。Webhook（Slack）・リアルタイム更新・REST API からの変更も、同じイベントに乗っています。
 
 - イベントは**コミット後に発火**（`ShouldDispatchAfterCommit`）。ロールバックされた変更の通知は届かない
 - **操作した本人には届けない**。移行コマンドやシーダーなど、操作者のいない変更も通知しない
@@ -249,6 +261,35 @@ protected function content(): Attribute
 - 配色はライト／ダークそれぞれの背景色に対して、明度・彩度・コントラストを検証して決定
 - 色だけに頼らないよう、内訳は件数と割合を文字でも併記
 
+### 15. 外部へ送る Webhook を安全にする
+送り先の URL は利用者が決めるので、そのままだとサーバーを踏み台に社内ネットワークやクラウドのメタデータ（`169.254.169.254`）を叩けてしまいます（SSRF）。
+
+- 送り先は **https のみ**。名前を引いて、**プライベート・ループバック・リンクローカル・CGNAT** のアドレスなら登録も送信も拒否
+- 検査は登録時と**送る直前の 2 回**。さらに curl の接続先を検査した IP に固定（`CURLOPT_RESOLVE`）し、リダイレクトはたどらない。DNS リバインディングで後から内部へ向けられても届かない
+- 本文に **HMAC-SHA256 の署名**（対象は `タイムスタンプ.本文`）。受け手はタイムスタンプでリプレイを弾ける。鍵は暗号化して保存
+- 送信はキューで行い、5xx・429・接続失敗は**間隔を広げながら最大 6 回**送り直す。4xx は何度送っても同じなので諦める
+- 中身はイベントの時点で写し取り、再試行でも再送でも同じものを送る。メールアドレスは外部へ送らない
+- Slack 向けの文では `<` `>` `&` を逃がし、課題名に `<!channel>` と書いて全員に通知を飛ばす、を防ぐ
+
+### 16. 添付ファイルとメンションの「詐称」を防ぐ
+- 添付は公開ディレクトリの外に置き、**読み出しは必ずアプリを通して権限を確かめる**（見られない人には 404）
+- 保存名は UUID、拡張子は**中身（MIME）から**決める。SVG と HTML は受けない（同じオリジンで開かれるとスクリプトが動く）
+- 画像と PDF 以外は必ずダウンロードさせ、`nosniff` と `sandbox` の CSP を付けて返す
+- 本文の画像は**自分のサーバーのものだけ**許可（HTMLPurifier の `DisableExternalResources`）。外部のトラッキング画像を埋め込ませない
+- メンションの印（`data-id`）は HTML を書き換えれば偽れるので、**保存の直前に表示名を本人の名前へ書き直し、メンバー以外は印を外す**。「@社長」を名乗って別人へ通知を飛ばすことはできない
+- 書き直したときは**新しく増えた人にだけ**通知する
+
+### 17. API は画面と同じ道を通す
+- REST API は画面と同じ Policy・同じサービス（`WorkflowService` / `IssueAssignmentService`）を通る。API だからといってワークフローを飛び越えられず、履歴・通知・Webhook も同じように残る・飛ぶ
+- トークンには `read` / `write` の権限と有効期限を付ける。トークンの文字列は発行直後に 1 度だけ見せ、DB にはハッシュだけを残す
+- 画面のセッション（Cookie）では API を呼べないようにし、CSRF の面を増やさない
+
+### 18. 取り込みは「全部か無しか」
+- CSV の取り込みは全行を先に確かめ、**1 行でも誤りがあれば 1 件も作らない**。途中まで入ると、直して読み込み直したときに前半が二重にできるため
+- 何行目がなぜだめかを結果の画面に並べる。取り込みはキューで行い、画面は終わるまで自動で更新
+- 取り込んだ課題には操作者を付けず、何百件ぶんの通知や Webhook が一度に飛ばないようにする
+- 書き出しでは `=` `+` `-` `@` で始まる値を逃がす（**CSV インジェクション**対策）。書き出したファイルはそのまま読み込める
+
 ---
 
 ## 🧪 テスト
@@ -259,7 +300,7 @@ php artisan test
 ```
 
 ```
-Tests:  2 skipped, 517 passed (1423 assertions)
+Tests:  2 skipped, 682 passed (1956 assertions)
 ```
 
 スキップの 2 件は、課題番号の並行採番テストのうち `pcntl` 拡張や MySQL が必要なものです（環境が揃えば実行されます）。
@@ -282,6 +323,14 @@ Tests:  2 skipped, 517 passed (1423 assertions)
 | `Task\*` | 作成・削除・インライン更新・クイック追加・絞り込み・本文のサニタイズ・他人の課題の保護 |
 | `Tag\TagTest` | タグの CRUD、ユーザー単位の一意制約、付け外し、絞り込み |
 | `BoardTest` / `DashboardTest` | ボードの遷移と並び順、ダッシュボードの集計 |
+| `Notification\MentionTest` | メンションの通知、コメント通知との二重送信の防止、部外者・表示名の詐称の無効化、書き直し時の差分 |
+| `Issue\AttachmentTest` | 添付の保存・権限・中身による種類の判定（拡張子だけ偽った HTML を弾く）・ダウンロードのヘッダ・外部画像の除去 |
+| `Webhook\*` | 購読と配信・署名の検証・再試行と諦める条件・SSRF（内部アドレス・DNS リバインディング）・設定画面の権限 |
+| `Task\AdvancedSearchTest` / `SavedFilterTest` | 条件式の各項目・否定・日付の比較・読めない条件の報告・保存した条件 |
+| `Issue\WorklogTest` | 時間の書き方の解釈・見積もり・作業記録の権限・分析画面の集計 |
+| `Task\CsvExportTest` / `CsvImportTest` | 絞り込みどおりの書き出し・CSV インジェクション対策・全部か無しかの取り込み・Shift_JIS・往復 |
+| `Api\*` | トークンの権限と期限・画面と同じ認可とワークフロー・JSON のエラー |
+| `Issue\RealtimeTest` / `Sprint\VelocityTest` | 配信する中身と条件・チャンネルの認可、ベロシティの写し取り |
 | `PageRenderTest` | 全画面の描画（データ 0 件のケースを含む）と 404 |
 | `Unit\*` | ワークフローの判定、課題の期限判定、クイック追加の解析、リッチテキストのサニタイズ |
 
@@ -293,10 +342,11 @@ Tests:  2 skipped, 517 passed (1423 assertions)
 
 ```bash
 docker compose up --build
-# → http://localhost:8000
+# → http://localhost:8000（リアルタイム更新の WebSocket は 8080）
 ```
 
-これだけで MySQL とキューのワーカーごと起動し、そのまま新規登録して使えます。
+これだけで MySQL・キューのワーカー・スケジューラ・Reverb（WebSocket）ごと起動し、そのまま新規登録して使えます。
+添付ファイルはボリューム `attachments` に保存されるので、作り直しても消えません。
 初回起動時に以下が自動で実行されます。
 
 1. `.env` の生成と、compose で指定した設定（DB 接続先など）の反映
@@ -324,6 +374,7 @@ docker compose -f docker-compose.yml -f compose.dev.yml up --build
 - CSS・JS は `assets` コンテナが `vite build --watch` で書き出し続ける
 - キューのワーカーは常駐プロセスなので、PHP を変えたら `docker compose restart queue`
 - マイグレーションを足したら `docker compose restart app`（起動時に流れる）
+- npm のパッケージを足したら `docker compose restart assets`（`assets` コンテナは専用の `node_modules` を持つので、`npm ci` をやり直させる）
 
 <details>
 <summary>詰まりどころ: <code>artisan serve</code> は環境変数を子プロセスに渡さない</summary>
@@ -448,11 +499,10 @@ docs/                           # 設計書・移行手順書
 
 ## 🔭 今後の展望
 
-- @メンション（通知の仕組みに乗せる）
-- Slack 通知・汎用 Webhook の送信（イベントに乗せる）
 - GitHub 連携（コミット・PR の課題キーから課題へ紐づけ、マージで自動完了）
 - 期限が近い課題のリマインド（スケジューラ + 通知）
-- JQL 風の検索クエリと、保存できるフィルター
+- 条件式の OR・括弧への対応、保存したフィルターのチームでの共有
 - クイック追加の入力中プレビュー（打ちながら解釈結果を表示）
-- REST API 化（Laravel Sanctum）とモバイル対応
+- 添付ファイルのウイルススキャン、S3 の署名付き URL による直接配信
+- モバイル対応
 - 全文検索エンジンの導入（Laravel Scout）

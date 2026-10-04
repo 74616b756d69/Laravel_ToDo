@@ -32,7 +32,7 @@
     {{-- コメント投稿フォーム。履歴タブでは出さない --}}
     @if ($tab !== 'history')
         @can('create', [\App\Models\Comment::class, $task])
-            <form action="{{ route('comments.store', $task) }}" method="POST" class="card mb-4 space-y-3 p-4">
+            <form action="{{ route('comments.store', $task) }}" method="POST" class="card mb-4 space-y-3 p-4" data-comment-form>
                 @csrf
                 {{-- 打ち直しを拾うのは投稿が失敗したときだけ（コメントの書き直しの old は別物） --}}
                 <x-rich-editor name="body" :value="$errors->has('body') ? old('body') : null" placeholder="コメントを書く" />

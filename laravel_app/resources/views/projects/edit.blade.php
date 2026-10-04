@@ -263,6 +263,25 @@
         </section>
     @endcan
 
+    {{-- 連携。設定が多いので別の画面に分ける --}}
+    @can('update', $project)
+        <section class="mt-8">
+            <h2 class="mb-3 text-lg font-bold tracking-tight">連携</h2>
+
+            <a href="{{ route('projects.webhooks.index', $project) }}"
+               class="card flex items-center gap-3 p-4 transition hover:bg-slate-50 dark:hover:bg-white/5">
+                <span class="grid size-9 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                    <x-icon name="bell" class="size-4" />
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-medium">Webhook</span>
+                    <span class="block text-xs text-slate-500 dark:text-slate-400">課題の動きを Slack や外部のサーバーへ知らせる</span>
+                </span>
+                <x-icon name="arrow-right" class="size-4 text-slate-400" />
+            </a>
+        </section>
+    @endcan
+
     @can('delete', $project)
         {{-- 危険な操作は他と離して最後に置く --}}
         <section class="mt-8">

@@ -22,13 +22,17 @@ return [
         'task' => [
             'HTML.Doctype' => 'HTML 4.01 Transitional',
             'HTML.Allowed' => 'p,br,strong,em,s,code,pre,h2,h3,blockquote,hr,'
-                .'a[href|title|target|rel],div,span,label,'
+                .'a[href|title|target|rel],div,span[data-type|data-id|data-label],label,'
                 .'ul[data-type],ol,li[data-type|data-checked],'
-                .'input[type|checked|disabled]',
+                .'input[type|checked|disabled],'
+                .'img[src|alt]',
             'HTML.TargetBlank' => true,
             'HTML.Nofollow' => true,
             // href は http(s) とメールのみ許可（javascript: スキームを弾く）
             'URI.AllowedSchemes' => ['http' => true, 'https' => true, 'mailto' => true],
+            // 画像は自分のサーバー（添付ファイル）のものだけ。外部の画像を許すと、
+            // 開いた人の IP や閲覧時刻を第三者に送る「トラッキング画像」を埋め込める
+            'URI.DisableExternalResources' => true,
             'CSS.AllowedProperties' => '',
             // チェックリストは空の <span> を含むため、空要素の自動削除は行わない
             'AutoFormat.RemoveEmpty' => false,
@@ -40,7 +44,7 @@ return [
          */
         'custom_definition' => [
             'id' => 'tiptap-task-content',
-            'rev' => 2,
+            'rev' => 4,
             'debug' => false,
             'elements' => [
                 ['label', 'Inline', 'Inline', 'Common'],
@@ -56,6 +60,10 @@ return [
                 ['ul', 'data-type', 'Text'],
                 ['li', 'data-type', 'Text'],
                 ['li', 'data-checked', 'Text'],
+                // @メンション。中身の正しさは App\Support\Mentions::normalize() が保存前に確かめる
+                ['span', 'data-type', 'Enum#mention'],
+                ['span', 'data-id', 'Text'],
+                ['span', 'data-label', 'Text'],
             ],
         ],
     ],

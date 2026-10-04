@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /** @var list<string> */
     protected $fillable = [
@@ -50,6 +51,12 @@ class User extends Authenticatable
     public function tags(): HasMany
     {
         return $this->hasMany(Tag::class)->orderBy('name');
+    }
+
+    /** 保存した一覧の絞り込み条件。 @return HasMany<SavedFilter, $this> */
+    public function savedFilters(): HasMany
+    {
+        return $this->hasMany(SavedFilter::class)->orderBy('name');
     }
 
     /** @return HasMany<Organization, $this> */

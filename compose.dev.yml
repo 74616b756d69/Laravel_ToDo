@@ -32,6 +32,12 @@ services:
   queue:
     volumes: *source
 
+  scheduler:
+    volumes: *source
+
+  reverb:
+    volumes: *source
+
   assets:
     image: node:22-slim
     working_dir: /app

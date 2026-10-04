@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // 課題の添付ファイル。公開ディレクトリの外に置き、AttachmentController だけが読み出す
+        'attachments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/attachments'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

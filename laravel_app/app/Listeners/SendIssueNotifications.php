@@ -6,11 +6,15 @@ use App\Events\CommentPosted;
 use App\Events\IssueAssigned;
 use App\Events\IssueCreated;
 use App\Events\IssueTransitioned;
+use App\Events\UsersMentioned;
 use App\Models\Issue;
 use App\Models\User;
 use App\Notifications\CommentPostedNotification;
 use App\Notifications\IssueAssignedNotification;
 use App\Notifications\IssueTransitionedNotification;
+use App\Notifications\MentionedNotification;
+use App\Support\Mentions;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -19,6 +23,7 @@ use Illuminate\Support\Facades\Notification;
  * 誰に届けるかの決まり:
  *  - 担当になった本人 … 担当の付け替え・担当者つきの作成
  *  - ウォッチャー     … ステータスの変更・コメント
+ *  - メンションされた人 … 説明・コメントで @ で呼ばれた（コメントの通知とは二重に送らない）
  *  - 操作した本人には届けない（自分がやったことは知っている）
  *  - 操作した人がいない変更（移行コマンドやシーダー）は通知しない
  */
@@ -56,9 +61,32 @@ class SendIssueNotifications
             return;
         }
 
+        // メンションされた人には、より強い「メンションされました」の方だけを届ける
+        $mentioned = Mentions::extractIds($comment->body);
+
         Notification::send(
-            $comment->issue->notifiableWatchers(except: $comment->user),
+            $comment->issue->notifiableWatchers(except: $comment->user)
+                ->reject(fn (User $watcher) => in_array($watcher->id, $mentioned, true)),
             new CommentPostedNotification($comment),
+        );
+    }
+
+    public function handleUsersMentioned(UsersMentioned $event): void
+    {
+        if ($event->actor === null || $event->userIds === []) {
+            return;
+        }
+
+        // 保存してから配信までの間にメンバーから外れた人には届けない（ウォッチと同じ考え方）
+        $recipients = User::query()
+            ->whereKey($event->userIds)
+            ->whereKeyNot($event->actor->id)
+            ->whereHas('projectMemberships', fn (Builder $query) => $query->where('project_id', $event->issue->project_id))
+            ->get();
+
+        Notification::send(
+            $recipients,
+            new MentionedNotification($event->issue, $event->actor, $event->source, $event->excerpt),
         );
     }
 

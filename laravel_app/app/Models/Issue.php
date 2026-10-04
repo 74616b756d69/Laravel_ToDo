@@ -7,6 +7,7 @@ use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
 use App\Observers\IssueObserver;
 use App\Support\IssueReference;
+use App\Support\Mentions;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +53,7 @@ class Issue extends Model
         'due_date',
         'position',
         'story_points',
+        'original_estimate_minutes',
     ];
 
     protected function casts(): array
@@ -74,10 +76,27 @@ class Issue extends Model
             }
         });
 
+        // メンションの印はプロジェクトのメンバーだけに絞る（Comment と同じ）
+        static::saving(function (Issue $issue) {
+            if (! $issue->isDirty('content') || $issue->project_id === null) {
+                return;
+            }
+
+            $normalized = Mentions::normalize($issue->content, $issue->project);
+
+            if ($normalized !== $issue->content) {
+                $issue->content = $normalized;
+            }
+        });
+
         // 子課題は独立した行なので、親を消したら一緒に消さないと一覧に孤児が残る。
         // 外部キーのカスケードはハードデリートにしか効かないため、ここで面倒を見る。
         static::deleting(function (Issue $issue) {
             if ($issue->isForceDeleting()) {
+                // 行は外部キーのカスケードで消えるが、ストレージの中身は残ってしまう。
+                // モデル経由で消して、ファイルも一緒に片付ける
+                $issue->attachments()->each(fn (Attachment $attachment) => $attachment->delete());
+
                 return;
             }
 
@@ -158,6 +177,26 @@ class Issue extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)->oldest()->chaperone();
+    }
+
+    /**
+     * 添付ファイル。新しいものから並べる。
+     *
+     * @return HasMany<Attachment, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(Attachment::class)->latest()->latest('id')->chaperone();
+    }
+
+    /**
+     * 作業時間の記録。作業した日の新しい順。
+     *
+     * @return HasMany<Worklog, $this>
+     */
+    public function worklogs(): HasMany
+    {
+        return $this->hasMany(Worklog::class)->orderByDesc('worked_on')->orderByDesc('id')->chaperone();
     }
 
     /**

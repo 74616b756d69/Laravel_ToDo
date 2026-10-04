@@ -77,6 +77,12 @@ class Project extends Model
         return $this->hasMany(Sprint::class);
     }
 
+    /** @return HasMany<Webhook, $this> */
+    public function webhooks(): HasMany
+    {
+        return $this->hasMany(Webhook::class)->orderBy('name')->orderBy('id');
+    }
+
     /**
      * 新しい課題が置かれるステータス。並び順のいちばん手前。
      */

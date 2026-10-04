@@ -10,8 +10,17 @@
             全 <span class="font-mono tabular-nums">{{ $summary['total'] }}</span> 件のうち
             <span class="font-mono tabular-nums">{{ $tasks->total() }}</span> 件を表示しています。
         </p>
+        {{-- エクスポートはいまの絞り込み条件のまま（ページ番号だけ外す） --}}
+        <a href="{{ route('tasks.export', request()->except('page')) }}"
+           class="ml-auto inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            <x-icon name="download" class="size-3.5" /> CSV エクスポート
+        </a>
+        <a href="{{ route('tasks.import') }}"
+           class="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+            CSV から取り込む
+        </a>
         <a href="{{ route('tasks.create') }}"
-           class="ml-auto text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+           class="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
             詳しく入力して作成 →
         </a>
     </div>
@@ -57,6 +66,7 @@
         $without = fn (string $key) => request()->fullUrlWithoutQuery([$key, 'page']);
 
         $activeFilters = collect([
+            $filters['q'] ? ['label' => $filters['q'], 'url' => $without('q'), 'mono' => true] : null,
             $filters['keyword'] ? ['label' => '「'.$filters['keyword'].'」', 'url' => $without('keyword')] : null,
             $filters['project'] ? ['label' => $projects->firstWhere('id', $filters['project'])?->key, 'url' => $without('project')] : null,
             $filters['category'] ? ['label' => $filters['category']->label(), 'url' => $without('category')] : null,
@@ -69,6 +79,27 @@
         // キーワードと並び替えは常に見えているので、畳んだ中にある条件だけを数える
         $foldedCount = $activeFilters->count() - ($filters['keyword'] ? 1 : 0);
     @endphp
+
+    {{-- 保存した条件。押せばその条件の一覧へ。個人ごと --}}
+    @if ($savedFilters->isNotEmpty())
+        <nav aria-label="保存した条件" class="mb-2 flex flex-wrap items-center gap-1.5">
+            <span class="mr-1 text-xs text-slate-500 dark:text-slate-400">保存した条件:</span>
+            @foreach ($savedFilters as $saved)
+                <span class="inline-flex items-center rounded-sm bg-slate-100 text-xs font-medium text-slate-600 dark:bg-white/5 dark:text-slate-300">
+                    <a href="{{ $saved->url() }}" class="py-0.5 pl-1.5 pr-1 hover:underline">{{ $saved->name }}</a>
+                    <form action="{{ route('saved-filters.destroy', $saved) }}" method="POST"
+                          data-confirm="保存した条件「{{ $saved->name }}」を削除しますか？">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" aria-label="保存した条件「{{ $saved->name }}」を削除" title="削除"
+                                class="grid h-5 w-5 place-items-center rounded-sm text-slate-400 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white">
+                            <x-icon name="close" class="size-3" />
+                        </button>
+                    </form>
+                </span>
+            @endforeach
+        </nav>
+    @endif
 
     {{--
         絞り込み。件数タブ・キーワード・並び替えを 1 行にまとめ、
@@ -128,6 +159,27 @@
         {{-- 条件が効いているときは、畳んだままでも中身が分かるよう開いておく --}}
         <div class="hidden peer-checked:block">
             <div class="mt-2 space-y-3 border-t border-slate-100 px-1 pt-3 dark:border-white/5">
+                {{-- 条件式。選択肢では表せない組み合わせ（自分の担当で 1 週間以内が期限、など）はここに書く --}}
+                <div>
+                    <label for="filter-q" class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">条件式</label>
+                    <input id="filter-q" type="search" name="q" value="{{ $filters['q'] }}" maxlength="500"
+                           placeholder="assignee:me status:進行中 due<7d -tag:後回し"
+                           class="field font-mono text-xs">
+                    <details class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <summary class="cursor-pointer select-none">書き方</summary>
+                        <dl class="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr]">
+                            <dt><code>assignee:me</code> / <code>assignee:none</code> / <code>assignee:名前</code></dt><dd>担当者（reporter: で起票者）</dd>
+                            <dt><code>status:"レビュー中"</code></dt><dd>ステータス名（空白を含むときは "…" で囲む）</dd>
+                            <dt><code>is:open</code> <code>is:done</code> <code>is:overdue</code> <code>is:unassigned</code> <code>is:watching</code></dt><dd>状態</dd>
+                            <dt><code>priority:high</code> <code>type:bug</code> <code>tag:名前</code> <code>project:KEY</code></dt><dd>優先度・課題タイプ・タグ・プロジェクト（日本語の名前でも可）</dd>
+                            <dt><code>sprint:current</code> / <code>sprint:none</code></dt><dd>進行中のスプリント / バックログ</dd>
+                            <dt><code>due&lt;7d</code> <code>due:today</code> <code>created&gt;=-7d</code> <code>updated&lt;2026-10-01</code> <code>due:none</code></dt><dd>日付。7d は 7 日後、-7d は 7 日前</dd>
+                            <dt><code>-tag:後回し</code></dt><dd>頭に - で否定</dd>
+                            <dt>それ以外の言葉</dt><dd>タイトル・本文の部分一致</dd>
+                        </dl>
+                    </details>
+                </div>
+
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     @if ($projects->count() > 1)
                         {{-- 一覧は横断ビューのまま。プロジェクトは絞り込みの 1 つとして足す --}}
@@ -212,7 +264,7 @@
                     {{-- バッジ自体が解除ボタン。1 つずつ外せる --}}
                     <a href="{{ $filter['url'] }}"
                        class="inline-flex items-center gap-1 rounded-sm bg-slate-100 py-0.5 pr-1 pl-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10">
-                        {{ $filter['label'] }}
+                        <span @class(['font-mono' => $filter['mono'] ?? false])>{{ $filter['label'] }}</span>
                         <x-icon name="close" class="size-3.5 text-slate-400" />
                         <span class="sr-only">この条件を外す</span>
                     </a>
@@ -227,6 +279,33 @@
             </div>
         @endif
     </form>
+
+    {{-- 条件式の読めなかった部分。黙って外すと、絞れていると思い込んだまま結果を読んでしまう --}}
+    @if ($queryErrors !== [])
+        <div role="alert" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <p class="font-medium">条件式の一部を読めなかったため、その条件は外して表示しています。</p>
+            <ul class="mt-1 list-disc pl-5 text-xs">
+                @foreach ($queryErrors as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- いまの条件に名前を付けて保存する。検索フォーム（GET）の中には入れ子にできないので外に置く --}}
+    @if ($activeFilters->isNotEmpty())
+        <form action="{{ route('saved-filters.store') }}" method="POST" class="mb-3 flex flex-wrap items-center justify-end gap-2">
+            @csrf
+            @foreach (\App\Models\SavedFilter::extract(request()->query()) as $key => $value)
+                <input type="hidden" name="query[{{ $key }}]" value="{{ $value }}">
+            @endforeach
+            <label class="sr-only" for="saved-filter-name">保存する名前</label>
+            <input id="saved-filter-name" name="name" type="text" maxlength="40" required value="{{ old('name') }}"
+                   placeholder="この条件に名前を付けて保存" class="field w-56 py-1.5 text-xs">
+            <button type="submit" class="btn-quiet py-1.5 text-xs">保存</button>
+            <div class="w-full text-right"><x-input-error :messages="$errors->get('name')" /></div>
+        </form>
+    @endif
 
     {{-- 一覧は箱に入れず、上下の罫線で区切られた領域として置く --}}
     <div class="surface border-y border-slate-200 dark:border-slate-800">

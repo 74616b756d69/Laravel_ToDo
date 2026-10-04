@@ -6,22 +6,30 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BacklogController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Issue\AttachmentController;
 use App\Http\Controllers\Issue\CommentController;
 use App\Http\Controllers\Issue\IssueLinkController;
 use App\Http\Controllers\Issue\LegacyUrlController;
 use App\Http\Controllers\Issue\WatchController;
+use App\Http\Controllers\Issue\WorklogController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Project\ProjectMemberController;
 use App\Http\Controllers\Project\ProjectSwitchController;
 use App\Http\Controllers\Project\StatusController;
+use App\Http\Controllers\Project\WebhookController;
 use App\Http\Controllers\Project\WorkflowTransitionController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\SavedFilterController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Sprint\SprintController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\Task\AssigneeController;
 use App\Http\Controllers\Task\ContentController;
 use App\Http\Controllers\Task\DueDateController;
+use App\Http\Controllers\Task\EstimateController;
+use App\Http\Controllers\Task\ExportController;
+use App\Http\Controllers\Task\ImportController;
 use App\Http\Controllers\Task\IssueTypeController;
 use App\Http\Controllers\Task\PriorityController;
 use App\Http\Controllers\Task\QuickAddController;
@@ -62,6 +70,17 @@ Route::middleware('auth')->group(function () {
     // ヘッダーの検索窓。キーなら /browse、それ以外は一覧のキーワード検索へ振り分ける
     Route::get('search', SearchController::class)->name('search');
 
+    // REST API の個人アクセストークン
+    Route::get('settings/tokens', [ApiTokenController::class, 'index'])->name('settings.tokens');
+    Route::post('settings/tokens', [ApiTokenController::class, 'store'])->name('settings.tokens.store');
+    Route::delete('settings/tokens/{token}', [ApiTokenController::class, 'destroy'])
+        ->whereNumber('token')->name('settings.tokens.destroy');
+
+    // 一覧の絞り込み条件の保存（個人ごと）
+    Route::post('saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
+    Route::delete('saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])
+        ->whereNumber('savedFilter')->name('saved-filters.destroy');
+
     // 課題詳細。URL は課題キー（/browse/PROJ-123）。
     // 画面でもやりとりでも課題を指すのはキーなので、URL もそれに合わせる。
     // id からキーへの解決は Issue::resolveRouteBinding() が受け持つ。
@@ -85,6 +104,18 @@ Route::middleware('auth')->group(function () {
         // 削除は「残った課題をどこへ送るか」を選んでから実行する 2 段構え
         Route::get('statuses/{status}/delete', [StatusController::class, 'confirmDelete'])->name('statuses.delete');
         Route::delete('statuses/{status}', [StatusController::class, 'destroy'])->name('statuses.destroy');
+
+        // Webhook（外部サービスへの通知）。テスト送信と再送は、相手を叩きすぎないよう上限を設ける
+        Route::get('webhooks', [WebhookController::class, 'index'])->name('webhooks.index');
+        Route::post('webhooks', [WebhookController::class, 'store'])->name('webhooks.store');
+        Route::get('webhooks/{webhook}', [WebhookController::class, 'show'])->name('webhooks.show');
+        Route::put('webhooks/{webhook}', [WebhookController::class, 'update'])->name('webhooks.update');
+        Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('webhooks.destroy');
+        Route::post('webhooks/{webhook}/secret', [WebhookController::class, 'rotateSecret'])->name('webhooks.secret');
+        Route::post('webhooks/{webhook}/ping', [WebhookController::class, 'ping'])
+            ->middleware('throttle:10,1')->name('webhooks.ping');
+        Route::post('webhooks/{webhook}/deliveries/{delivery}/redeliver', [WebhookController::class, 'redeliver'])
+            ->middleware('throttle:10,1')->name('webhooks.redeliver');
 
         Route::post('transitions', [WorkflowTransitionController::class, 'store'])->name('transitions.store');
         Route::delete('transitions/{transition}', [WorkflowTransitionController::class, 'destroy'])
@@ -112,6 +143,14 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1')
         ->name('tasks.quick');
 
+    // CSV。エクスポートは一覧の絞り込み条件のまま。インポートはキューで取り込む
+    // （resource の tasks/{task} に飲み込まれないよう、その前に置く）
+    Route::get('tasks/export', ExportController::class)->middleware('throttle:10,1')->name('tasks.export');
+    Route::get('tasks/import', [ImportController::class, 'create'])->name('tasks.import');
+    Route::post('tasks/import', [ImportController::class, 'store'])->middleware('throttle:10,1')->name('tasks.import.store');
+    Route::get('tasks/import/template', [ImportController::class, 'template'])->name('tasks.import.template');
+    Route::get('tasks/import/{import}', [ImportController::class, 'show'])->whereNumber('import')->name('tasks.import.show');
+
     // 詳細（show）は課題キーの URL に出してあるのでここでは作らない。
     // 編集は詳細画面の項目ごとのインライン更新（下の PATCH 群）に一本化したので、
     // まとめて直すための edit / update も持たない
@@ -134,6 +173,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('tasks/{task}/due-date', DueDateController::class)->name('tasks.due-date');
     Route::patch('tasks/{task}/story-points', StoryPointsController::class)->name('tasks.story-points');
     Route::patch('tasks/{task}/tags', IssueTagController::class)->name('tasks.tags');
+    Route::patch('tasks/{task}/estimate', EstimateController::class)->name('tasks.estimate');
+
+    // 作業時間の記録（実績）。書き直しは持たず、消して記録し直す
+    Route::post('tasks/{task}/worklogs', [WorklogController::class, 'store'])->name('worklogs.store');
+    Route::delete('tasks/{task}/worklogs/{worklog}', [WorklogController::class, 'destroy'])->name('worklogs.destroy');
 
     // コメント（課題に従属するのでネストする）。履歴は不変なのでルートを持たない。
     // 投稿はサニタイズ（HTMLPurifier）が重いので、連投に上限を設ける
@@ -142,6 +186,17 @@ Route::middleware('auth')->group(function () {
         ->name('comments.store');
     Route::put('tasks/{task}/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
     Route::delete('tasks/{task}/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+
+    // 添付ファイル。保存はサニタイズと同じく重いので、連投に上限を設ける。
+    // 読み出しは課題キーを経由しない（エディタに埋めた画像の URL が、キーの変更で切れないように）
+    Route::post('tasks/{task}/attachments', [AttachmentController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('attachments.store');
+    Route::delete('tasks/{task}/attachments/{attachment}', [AttachmentController::class, 'destroy'])
+        ->name('attachments.destroy');
+    Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])
+        ->whereNumber('attachment')
+        ->name('attachments.show');
 
     // リンクされた作業項目。親子とは別で、関連づけても相手は一覧に残る
     Route::post('tasks/{task}/links', [IssueLinkController::class, 'store'])->name('links.store');

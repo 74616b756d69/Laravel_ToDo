@@ -28,7 +28,7 @@
         レーンはプロジェクトの statuses から作るので本数が可変。
         許可されていない遷移は data-allowed-transitions を見て画面側で止める。
     --}}
-    <div data-board
+    <div data-board data-realtime-project="{{ $project->id }}"
          data-allowed-transitions="{{ json_encode($allowedTransitions) }}"
          style="--lane-count: {{ $lanes->count() }}"
          class="grid gap-3 md:h-[calc(100vh-15rem)] md:min-h-96 md:grid-cols-[repeat(var(--lane-count),minmax(0,1fr))]">

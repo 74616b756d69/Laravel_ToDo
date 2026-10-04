@@ -4,7 +4,7 @@
 
 @php
     // 種類ごとのアイコン。色は使わず形で見分ける（未読の強調に色を取っておく）
-    $icons = ['assigned' => 'user', 'transitioned' => 'arrow-right', 'commented' => 'comment'];
+    $icons = ['assigned' => 'user', 'transitioned' => 'arrow-right', 'commented' => 'comment', 'mentioned' => 'at'];
 @endphp
 
 @section('content')
@@ -12,7 +12,7 @@
         <div>
             <h1 class="text-lg font-semibold tracking-tight">通知</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                担当になった課題と、ウォッチしている課題の変更が届きます。
+                担当になった課題・メンションされた課題と、ウォッチしている課題の変更が届きます。
             </p>
         </div>
 

@@ -52,6 +52,19 @@ if (document.querySelector('[data-editor]')) {
     import('./features/editor').then(({ bootEditors }) => bootEditors());
 }
 
+// リアルタイム更新は、変更を受け取る画面（ボード・課題）でだけ接続する
+if (document.querySelector('meta[name="realtime"]') && document.querySelector('[data-realtime-project]')) {
+    import('./features/realtime').then(({ bootRealtime }) => bootRealtime());
+}
+
+if (document.querySelector('[data-shortcuts-dialog]')) {
+    import('./features/shortcuts').then(({ bootShortcuts }) => bootShortcuts());
+}
+
+if (document.querySelector('[data-attachment-dropzone]')) {
+    import('./features/attachments').then(({ bootAttachments }) => bootAttachments());
+}
+
 if (document.querySelector('[data-board]')) {
     import('./features/board').then(({ bootBoard }) => bootBoard());
 }

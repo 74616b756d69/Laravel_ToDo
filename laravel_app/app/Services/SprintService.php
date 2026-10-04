@@ -62,6 +62,8 @@ class SprintService
                     // この 1 が unique 制約の鍵。active のときだけ値が入る
                     'active_marker' => 1,
                     'start_date' => $sprint->start_date ?? today(),
+                    // 開始時点で入っていたポイント（＝約束した量）。ベロシティの比較に使う
+                    'committed_points' => (int) $sprint->issues()->sum('story_points'),
                 ])->save();
 
                 return $sprint;
@@ -91,10 +93,13 @@ class SprintService
         $this->assertValidDestination($sprint, $destination);
 
         return DB::transaction(function () use ($sprint, $destination) {
+            // 送り出す前に、やり終えた量を数える
+            $completed = (int) $sprint->issues()->completed()->sum('story_points');
             $moved = $this->carryOverIncomplete($sprint, $destination);
 
             $sprint->forceFill([
                 'state' => SprintState::Closed,
+                'completed_points' => $completed,
                 // active を降りるので marker を外す。次のスプリントが開始できるようになる
                 'active_marker' => null,
                 'end_date' => $sprint->end_date ?? today(),
@@ -187,6 +192,34 @@ class SprintService
      *     days: Collection<int, array{date: \Illuminate\Support\Carbon, remaining: ?int, ideal: float}>
      * }|null
      */
+    /**
+     * 直近に閉じたスプリントのベロシティ（古い順）。閉じたものが無ければ空。
+     *
+     * 約束（committed）は開始時点の写し。写しが無い古いスプリントは null にして、
+     * 推測で埋めない。完了（completed）は写しが無ければ、スプリントに残った完了済みの課題から数え直す
+     * （完了時に未完了は送り出されるので、残っているのは終えたものだけ）。
+     *
+     * @return list<array{sprint: Sprint, committed: ?int, completed: int}>
+     */
+    public function velocityFor(Project $project, int $limit = 6): array
+    {
+        return $project->sprints()
+            ->state(SprintState::Closed)
+            ->withSum(['issues as done_points' => fn ($query) => $query->completed()], 'story_points')
+            ->orderByDesc('end_date')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->map(fn (Sprint $sprint) => [
+                'sprint' => $sprint,
+                'committed' => $sprint->committed_points,
+                'completed' => $sprint->completed_points ?? (int) $sprint->getAttribute('done_points'),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function burndownFor(Project $project): ?array
     {
         $sprint = $this->activeFor($project);

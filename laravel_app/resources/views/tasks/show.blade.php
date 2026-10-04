@@ -3,6 +3,16 @@
 @section('title', $task->title)
 
 @section('content')
+    <x-mention-candidates :users="$members" />
+
+    {{-- ほかの人がこの課題を変えたら出す（resources/js/features/realtime.js）。勝手に読み直すと書きかけが消えるので、押してもらう --}}
+    <div data-realtime-project="{{ $task->project_id }}" data-realtime-issue="{{ $task->id }}" role="status" aria-live="polite"
+         class="mb-4 hidden items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+        <x-icon name="bell" class="size-4 shrink-0" />
+        <span data-realtime-message class="flex-1"></span>
+        <a href="{{ request()->fullUrl() }}" class="font-medium underline">再読み込み</a>
+    </div>
+
     {{--
         課題画面は 2 カラム。
         左は「中身」（要約・説明・サブタスク・関連・やりとり）、
@@ -154,6 +164,8 @@
                 </form>
                 <x-input-error :messages="$errors->get('title')" />
             </section>
+
+            @include('tasks.attachments')
 
             @include('tasks.links')
 
@@ -359,13 +371,15 @@
                 </div>
             </dl>
 
+            @include('tasks.time-tracking')
+
             {{--
                 編集への入り口は置かない。項目はすべてその場で直せるので、
                 ここに残るのは「その場では済まない操作」＝ウォッチと削除だけ。
             --}}
             <div class="flex items-center gap-2">
                 {{-- ウォッチ。読むだけの人（viewer）も押せる --}}
-                <form action="{{ route($isWatching ? 'tasks.unwatch' : 'tasks.watch', $task) }}" method="POST">
+                <form action="{{ route($isWatching ? 'tasks.unwatch' : 'tasks.watch', $task) }}" method="POST" data-shortcut-watch>
                     @csrf
                     @if ($isWatching)
                         @method('DELETE')

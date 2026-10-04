@@ -191,6 +191,7 @@
    JS が初期化できたフォームにだけ ready が付くので、そのときだけ隠す。
    （最初から hidden にしないのは、JS が無い環境で操作不能にしないため）
 */
+form[data-attachment-form='ready'] [data-attachment-submit],
 form[data-auto-submit='ready'] [data-submit-fallback] {
     display: none;
 }
@@ -293,6 +294,44 @@ form[data-auto-submit='ready'] [data-submit-fallback] {
     .prose-editor ul[data-type='taskList'] li[data-checked='true'] > div,
     .prose-content ul[data-type='taskList'] li[data-checked='true'] > div {
         @apply text-slate-400 line-through dark:text-slate-500;
+    }
+
+    /* 本文に貼った画像（添付ファイル） */
+    .prose-editor img,
+    .prose-content img {
+        @apply max-h-96 max-w-full rounded-lg border border-slate-200 dark:border-slate-700;
+    }
+
+    .prose-editor img.ProseMirror-selectednode {
+        @apply ring-2 ring-brand-500;
+    }
+
+    /* ファイルを持ってきている間の受け皿 */
+    [data-attachment-dropzone].is-dragover {
+        @apply ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-950;
+    }
+
+    /* @メンション。本文中の名前と、@ を打つと出る候補の一覧 */
+    .prose-editor span[data-type='mention'],
+    .prose-content span[data-type='mention'] {
+        @apply rounded bg-brand-50 px-1 py-0.5 font-medium text-brand-700 dark:bg-brand-500/15 dark:text-brand-300;
+    }
+
+    .mention-list {
+        @apply absolute z-50 max-h-60 min-w-44 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-lg
+               dark:border-slate-700 dark:bg-slate-900;
+    }
+
+    .mention-option {
+        @apply cursor-pointer rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-200;
+    }
+
+    .mention-option[aria-selected='true'] {
+        @apply bg-brand-600 text-white;
+    }
+
+    .mention-empty {
+        @apply px-2.5 py-1.5 text-slate-400 dark:text-slate-500;
     }
 
     /* 空のときに表示するプレースホルダ */

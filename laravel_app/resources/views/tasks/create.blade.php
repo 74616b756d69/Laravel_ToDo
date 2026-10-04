@@ -3,6 +3,8 @@
 @section('title', '課題を作成')
 
 @section('content')
+    <x-mention-candidates :users="$members" />
+
     <x-page-heading title="課題を作成" :back="route('tasks.index')" back-label="一覧に戻る" />
 
     {{--

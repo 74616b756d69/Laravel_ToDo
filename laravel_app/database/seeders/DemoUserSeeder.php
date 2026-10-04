@@ -237,7 +237,12 @@ class DemoUserSeeder extends Seeder
             'start_date' => today()->subDays(24),
             'end_date' => today()->subDays(11),
         ]);
-        $closed->forceFill(['state' => \App\Enums\SprintState::Closed])->save();
+        // 課題は持たせないが、ベロシティのグラフに 1 本目が立つよう約束と完了の量だけ残す
+        $closed->forceFill([
+            'state' => \App\Enums\SprintState::Closed,
+            'committed_points' => 21,
+            'completed_points' => 18,
+        ])->save();
 
         $current = $sprints->create($project, [
             'name' => 'Sprint 2',

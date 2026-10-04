@@ -21,8 +21,8 @@ class RichText
 
         $clean = trim(Purifier::clean($html, 'task'));
 
-        // タグだけ残った実質空の入力は保存しない
-        return self::toPlainText($clean) === '' && ! str_contains($clean, '<hr')
+        // タグだけ残った実質空の入力は保存しない（区切り線と画像は、文字が無くても中身）
+        return self::toPlainText($clean) === '' && ! str_contains($clean, '<hr') && ! str_contains($clean, '<img')
             ? null
             : $clean;
     }

@@ -47,9 +47,17 @@ class RichTextTest extends TestCase
         $this->assertStringNotContainsString('javascript:', $html);
     }
 
-    public function test_imgタグは許可しない(): void
+    public function test_画像は残すがイベント属性は落とす(): void
     {
-        $this->assertNull(RichText::sanitize('<img src="x" onerror="alert(1)">'));
+        // 画像は添付ファイルを本文に貼るために許可している。属性は src と alt だけ
+        $this->assertSame('<img src="x" alt="x">', RichText::sanitize('<img src="x" onerror="alert(1)">'));
+    }
+
+    public function test_外部サーバーの画像は落とす(): void
+    {
+        // 開いた人の IP や閲覧時刻を第三者に送る「トラッキング画像」を埋め込ませない
+        $this->assertNull(RichText::sanitize('<img src="https://tracker.example/p.gif">'));
+        $this->assertNull(RichText::sanitize('<img src="javascript:alert(1)">'));
     }
 
     public function test_中身が空なら_nullになる(): void

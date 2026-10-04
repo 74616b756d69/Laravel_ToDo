@@ -20,6 +20,21 @@
     </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
+
+    {{--
+        リアルタイム更新（Reverb）の接続先。ビルド時の環境変数に焼き込まず、ここで渡す
+        （同じビルドを、接続先の違う環境で使い回せるように）。Reverb を使わない環境では出さない。
+    --}}
+    @auth
+        @if (config('broadcasting.default') === 'reverb')
+            <meta name="realtime" content="{{ json_encode([
+                'key' => config('broadcasting.connections.reverb.key'),
+                ...config('broadcasting.connections.reverb.client'),
+                'user' => auth()->id(),
+            ]) }}">
+        @endif
+    @endauth
 </head>
 <body class="min-h-screen">
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:m-3 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:ring-2 focus:ring-brand-500">
@@ -36,5 +51,9 @@
     <footer class="border-t border-slate-200/70 py-6 text-center text-xs text-slate-400 dark:border-white/5 dark:text-slate-500">
         {{ config('app.name') }} — Laravel {{ Illuminate\Foundation\Application::VERSION }}
     </footer>
+
+    @auth
+        @include('partials.shortcuts')
+    @endauth
 </body>
 </html>

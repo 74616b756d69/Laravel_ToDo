@@ -16,6 +16,9 @@ enum ActivityField: string
     case Priority = 'priority';
     case Sprint = 'sprint';
     case StoryPoints = 'story_points';
+    case Attachment = 'attachment';
+    case Estimate = 'estimate';
+    case Worklog = 'worklog';
 
     public function label(): string
     {
@@ -26,6 +29,9 @@ enum ActivityField: string
             self::Priority => '優先度',
             self::Sprint => 'スプリント',
             self::StoryPoints => 'ストーリーポイント',
+            self::Attachment => '添付ファイル',
+            self::Estimate => '見積もり時間',
+            self::Worklog => '作業時間',
         };
     }
 
@@ -36,6 +42,20 @@ enum ActivityField: string
     {
         if ($this === self::Created) {
             return '課題を作成しました。';
+        }
+
+        // 作業時間は「記録 / 削除」。値は「1時間30分（10/5）」のような表示文字列
+        if ($this === self::Worklog) {
+            return $new !== null
+                ? "{$this->label()} {$new} を記録しました。"
+                : "{$this->label()} {$old} の記録を削除しました。";
+        }
+
+        // 添付は「設定」ではなく「追加 / 削除」。値はファイル名
+        if ($this === self::Attachment) {
+            return $new !== null
+                ? "{$this->label()}「{$new}」を追加しました。"
+                : "{$this->label()}「{$old}」を削除しました。";
         }
 
         return match (true) {
@@ -53,7 +73,7 @@ enum ActivityField: string
             self::Assignee => 'bg-violet-100 text-violet-800 ring-violet-300 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30',
             self::Priority => 'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30',
             self::Sprint => 'bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30',
-            self::StoryPoints => 'bg-slate-200 text-slate-700 ring-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+            self::StoryPoints, self::Attachment, self::Estimate, self::Worklog => 'bg-slate-200 text-slate-700 ring-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
         };
     }
 
@@ -72,6 +92,7 @@ enum ActivityField: string
             'priority' => self::Priority,
             'sprint_id' => self::Sprint,
             'story_points' => self::StoryPoints,
+            'original_estimate_minutes' => self::Estimate,
         ];
     }
 }

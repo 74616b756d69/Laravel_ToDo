@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Events\CommentPosted;
+use App\Events\UsersMentioned;
+use App\Support\Mentions;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * 課題へのコメント。
@@ -38,6 +41,41 @@ class Comment extends Model
     protected function casts(): array
     {
         return ['edited_at' => 'datetime'];
+    }
+
+    protected static function booted(): void
+    {
+        // メンションの印はプロジェクトのメンバーだけに絞る。課題が決まるのは
+        // make() のあとなので、ミューテータではなく保存の直前に行う
+        static::saving(function (Comment $comment) {
+            if (! $comment->isDirty('body')) {
+                return;
+            }
+
+            $normalized = Mentions::normalize($comment->body, $comment->issue->project);
+
+            if ($normalized !== $comment->body) {
+                $comment->body = $normalized;
+            }
+        });
+
+        // 投稿でも編集でも、新しく呼ばれた人にだけ知らせる
+        static::saved(function (Comment $comment) {
+            if (! $comment->wasRecentlyCreated && ! $comment->wasChanged('body')) {
+                return;
+            }
+
+            $added = array_values(array_diff(
+                Mentions::extractIds($comment->body),
+                Mentions::extractIds($comment->getOriginal('body')),
+            ));
+
+            if ($added !== []) {
+                UsersMentioned::dispatch(
+                    $comment->issue, $added, $comment->user, 'comment', Str::limit((string) $comment->body_text, 120),
+                );
+            }
+        });
     }
 
     /** @return BelongsTo<Issue, $this> */

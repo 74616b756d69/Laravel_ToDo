@@ -10,10 +10,10 @@
      * 引き続きメニューへ畳み、下段に常時見えるのは 4 つまでにしている。
      */
     $navigation = [
-        ['route' => 'tasks.index', 'label' => '課題', 'active' => request()->routeIs('tasks.*')],
-        ['route' => 'board', 'label' => 'ボード', 'active' => request()->routeIs('board')],
-        ['route' => 'backlog', 'label' => 'バックログ', 'active' => request()->routeIs('backlog') || request()->routeIs('sprints.*')],
-        ['route' => 'dashboard', 'label' => '分析', 'active' => request()->routeIs('dashboard')],
+        ['route' => 'tasks.index', 'label' => '課題', 'active' => request()->routeIs('tasks.*'), 'shortcut' => 'issues'],
+        ['route' => 'board', 'label' => 'ボード', 'active' => request()->routeIs('board'), 'shortcut' => 'board'],
+        ['route' => 'backlog', 'label' => 'バックログ', 'active' => request()->routeIs('backlog') || request()->routeIs('sprints.*'), 'shortcut' => 'backlog'],
+        ['route' => 'dashboard', 'label' => '分析', 'active' => request()->routeIs('dashboard'), 'shortcut' => 'dashboard'],
     ];
 
     $menuItem = 'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5';
@@ -100,7 +100,7 @@
                 </a>
 
                 {{-- 通知。未読があるときだけ件数を出す（0 を出し続けると目に入らなくなる） --}}
-                <a href="{{ route('notifications.index') }}"
+                <a href="{{ route('notifications.index') }}" data-shortcut-target="notifications"
                    aria-label="通知{{ $unreadNotifications > 0 ? "（未読 {$unreadNotifications} 件）" : '' }}"
                    @class([
                        'relative grid size-8 place-items-center rounded-md transition hover:text-slate-900 dark:hover:text-white',
@@ -134,6 +134,10 @@
                         <x-icon name="tag" class="size-4 text-slate-400" /> タグ管理
                     </a>
 
+                    <a href="{{ route('settings.tokens') }}" class="{{ $menuItem }}">
+                        <x-icon name="settings" class="size-4 text-slate-400" /> API トークン
+                    </a>
+
                     <x-theme-toggle :class="$menuItem" with-label />
 
                     <div class="my-1.5 border-t border-slate-100 dark:border-white/5"></div>
@@ -162,7 +166,7 @@
         {{-- 下段：現在地は下線で示す。狭い画面では横スクロールさせる --}}
         <nav class="mx-auto -mb-px flex h-11 w-full max-w-7xl items-stretch gap-4 overflow-x-auto px-4 sm:gap-6 sm:px-6">
             @foreach ($navigation as $item)
-                <a href="{{ route($item['route']) }}"
+                <a href="{{ route($item['route']) }}" data-shortcut-target="{{ $item['shortcut'] }}"
                    @class([
                        'flex shrink-0 items-center border-b-2 text-sm whitespace-nowrap',
                        'border-brand-600 font-medium text-slate-900 dark:border-brand-400 dark:text-white' => $item['active'],

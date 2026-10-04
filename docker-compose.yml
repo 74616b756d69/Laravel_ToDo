@@ -19,9 +19,24 @@ services:
       DB_DATABASE: dev
       DB_USERNAME: root
       DB_PASSWORD: password
+      # リアルタイム更新（Laravel Reverb）。ID と鍵は開発用の固定値。本番では必ず変えること
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: "100001"
+      REVERB_APP_KEY: tracklet-dev-key
+      REVERB_APP_SECRET: tracklet-dev-secret
+      # サーバー（キューのワーカー）から見た Reverb の在りか
+      REVERB_HOST: reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+      # ブラウザから見た Reverb の在りか
+      REVERB_PUBLIC_HOST: localhost
+      REVERB_PUBLIC_PORT: "8080"
+      REVERB_PUBLIC_SCHEME: http
     volumes:
       # 発行したアプリケーションキーを保存しておく場所（queue と共有する）
       - app_state:/workdir/state
+      # 課題の添付ファイル。コンテナを作り直しても消えないようにする
+      - attachments:/workdir/laravel_app/storage/app/private/attachments
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +63,36 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # リアルタイム更新の WebSocket サーバー。ボードや課題の画面がここにつながる
+  reverb:
+    build: ./
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment:
+      <<: *app-env
+      CONTAINER_ROLE: worker
+    ports:
+      - "8080:8080"
+    volumes:
+      - app_state:/workdir/state
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 定期実行（古い Webhook 配信履歴の掃除など）。routes/console.php の Schedule を回す
+  scheduler:
+    build: ./
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      <<: *app-env
+      CONTAINER_ROLE: worker
+    volumes:
+      - app_state:/workdir/state
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
   db:
     image: mysql:8.3
     volumes:
@@ -66,3 +111,4 @@ services:
 volumes:
   mysql_data:
   app_state:
+  attachments:

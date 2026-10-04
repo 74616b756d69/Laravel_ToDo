@@ -175,6 +175,7 @@ class ActivityTest extends TestCase
             'priority' => TaskPriority::High,
             'sprint_id' => $sprint->id,
             'story_points' => 13,
+            'original_estimate_minutes' => 90,
         ];
 
         // 想定漏れがあればここで気づける

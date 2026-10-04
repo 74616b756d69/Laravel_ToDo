@@ -135,6 +135,93 @@
         </section>
     @endif
 
+    {{--
+        ベロシティ。閉じたスプリントごとに「約束した量」と「やり終えた量」を並べる。
+        同じ色相の淡（約束）と濃（完了）にして、2 本の関係（どれだけ届いたか）を読ませる。
+        色だけに頼らないよう、凡例と下の表で数字も出す。
+    --}}
+    @if ($velocity !== [])
+        @php
+            $vw = 900; $vh = 180; $vPadL = 36; $vPadR = 12; $vPadT = 16; $vPadB = 26;
+            $vMax = max(1, collect($velocity)->max(fn ($row) => max($row['committed'] ?? 0, $row['completed'])));
+            $vMax = (int) (ceil($vMax / 10) * 10);
+            $slot = ($vw - $vPadL - $vPadR) / count($velocity);
+            $barW = min(24, ($slot - 16) / 2);
+            $vy = fn ($value) => $vPadT + ($vh - $vPadT - $vPadB) * (1 - $value / $vMax);
+            $baseY = $vy(0);
+            $average = round(collect($velocity)->avg('completed'), 1);
+            // 上端だけ角を丸めた棒（データの端を丸め、基線側は直角のまま）
+            $bar = function (float $x, float $w, float $top) use ($baseY) {
+                $h = max($baseY - $top, 0);
+                $r = min(4, $w / 2, $h);
+                return "M{$x},{$baseY} V".($top + $r)." Q{$x},{$top} ".($x + $r).",{$top} H".($x + $w - $r)." Q".($x + $w).",{$top} ".($x + $w).",".($top + $r)." V{$baseY} Z";
+            };
+        @endphp
+
+        <section class="viz mt-8">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 class="text-sm font-semibold">ベロシティ</h2>
+                <span class="text-xs text-slate-500 dark:text-slate-400">直近 {{ count($velocity) }} スプリント・ストーリーポイント</span>
+                <p class="ml-auto flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-xs" style="background: var(--viz-ramp-low)"></span>約束</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-xs" style="background: var(--viz-series)"></span>完了</span>
+                    <span>平均 <span class="font-medium text-slate-700 tabular-nums dark:text-slate-200">{{ $average }}</span></span>
+                </p>
+            </div>
+
+            <svg viewBox="0 0 {{ $vw }} {{ $vh }}" class="viz-bars mt-3 w-full" role="img"
+                 aria-label="直近{{ count($velocity) }}スプリントのベロシティ。完了の平均は{{ $average }}ポイント">
+                @foreach ([0, $vMax / 2, $vMax] as $tick)
+                    <line x1="{{ $vPadL }}" y1="{{ $vy($tick) }}" x2="{{ $vw - $vPadR }}" y2="{{ $vy($tick) }}"
+                          stroke="var(--viz-grid)" stroke-width="1" />
+                    <text x="{{ $vPadL - 8 }}" y="{{ $vy($tick) + 4 }}" text-anchor="end"
+                          class="fill-slate-400 text-[11px] tabular-nums">{{ $tick + 0 }}</text>
+                @endforeach
+
+                {{-- 平均は破線。棒と競わないよう細く --}}
+                <line x1="{{ $vPadL }}" y1="{{ $vy($average) }}" x2="{{ $vw - $vPadR }}" y2="{{ $vy($average) }}"
+                      stroke="var(--viz-series)" stroke-width="1" stroke-dasharray="4 4" opacity="0.6" />
+
+                @foreach ($velocity as $i => $row)
+                    @php
+                        $center = $vPadL + $slot * $i + $slot / 2;
+                        $x1 = $center - $barW - 1;
+                        $x2 = $center + 1;
+                    @endphp
+                    {{-- 当たり判定は棒より広く取る（スロット全体） --}}
+                    <g class="viz-bar">
+                        <title>{{ $row['sprint']->name }}：約束 {{ $row['committed'] ?? '記録なし' }} / 完了 {{ $row['completed'] }} ポイント</title>
+                        <rect x="{{ $vPadL + $slot * $i }}" y="{{ $vPadT }}" width="{{ $slot }}" height="{{ $baseY - $vPadT }}" fill="transparent" />
+                        @if ($row['committed'] !== null)
+                            <path d="{{ $bar($x1, $barW, $vy($row['committed'])) }}" fill="var(--viz-ramp-low)" />
+                        @endif
+                        <path d="{{ $bar($x2, $barW, $vy($row['completed'])) }}" fill="var(--viz-series)" />
+                    </g>
+                    <text x="{{ $center }}" y="{{ $vh - 8 }}" text-anchor="middle"
+                          class="fill-slate-400 text-[11px]">{{ \Illuminate\Support\Str::limit($row['sprint']->name, 12) }}</text>
+                @endforeach
+            </svg>
+
+            {{-- 表でも見せる（色を見分けられなくても、読み上げでも同じことが分かる） --}}
+            <details class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                <summary class="cursor-pointer select-none">表で見る</summary>
+                <table class="mt-2 w-full text-left tabular-nums">
+                    <thead><tr class="border-b border-slate-200 dark:border-slate-800"><th class="py-1 font-medium">スプリント</th><th class="py-1 text-right font-medium">約束</th><th class="py-1 text-right font-medium">完了</th></tr></thead>
+                    <tbody>
+                        @foreach ($velocity as $row)
+                            <tr class="border-b border-slate-100 dark:border-slate-800/60">
+                                <td class="py-1 text-slate-600 dark:text-slate-300">{{ $row['sprint']->name }}</td>
+                                <td class="py-1 text-right">{{ $row['committed'] ?? '—' }}</td>
+                                <td class="py-1 text-right">{{ $row['completed'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <p class="mt-1">「—」は開始時の記録が無いスプリント（この機能を入れる前に始まったもの）。</p>
+            </details>
+        </section>
+    @endif
+
     {{-- この画面の主役。全幅で大きく取る --}}
     <section class="viz mt-8">
         <h2 class="text-sm font-semibold">日別の完了数</h2>
@@ -264,6 +351,35 @@
             @endif
         </section>
     </div>
+
+    {{-- 今週の作業時間。人ごとの横棒。誰に作業が寄っているかを見る --}}
+    <section class="viz mt-8">
+        <h2 class="text-sm font-semibold">
+            今週の作業時間
+            <span class="ml-1 font-normal text-slate-400">
+                {{ \App\Support\Duration::format($weeklyHours->sum('minutes') ?: null) }}（{{ today()->startOfWeek()->isoFormat('M/D') }}〜）
+            </span>
+        </h2>
+
+        @if ($weeklyHours->isEmpty())
+            <p class="mt-3 border-t border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                今週はまだ作業時間が記録されていません。課題の画面の「作業を記録」から付けられます。
+            </p>
+        @else
+            @php $maxMinutes = max(1, $weeklyHours->max('minutes')); @endphp
+            <dl class="mt-3 space-y-2">
+                @foreach ($weeklyHours as $row)
+                    <div class="grid grid-cols-[8rem_minmax(0,1fr)_5rem] items-center gap-3 text-sm">
+                        <dt class="truncate text-slate-600 dark:text-slate-300">{{ $row['name'] }}</dt>
+                        <dd class="h-3 overflow-hidden rounded-xs bg-slate-100 dark:bg-slate-800" aria-hidden="true">
+                            <div class="h-full rounded-xs" style="width: {{ round($row['minutes'] / $maxMinutes * 100) }}%; background: var(--viz-series)"></div>
+                        </dd>
+                        <dd class="text-right tabular-nums">{{ \App\Support\Duration::format($row['minutes']) }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+        @endif
+    </section>
 
     {{-- タグは件数の多い順に、幅で量がわかるよう横一列に並べる --}}
     @if ($topTags->isNotEmpty())

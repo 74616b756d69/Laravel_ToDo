@@ -1,0 +1,324 @@
+openapi: 3.1.0
+info:
+  title: Tracklet REST API
+  version: 1.0.0
+  description: |
+    Tracklet の課題・コメントを外部から読み書きする API。
+
+    - 認証: 個人アクセストークン（画面右上のメニュー →「API トークン」で発行）を
+      `Authorization: Bearer <token>` で送る。画面のログインセッションでは呼べない。
+    - 権限: トークンには `read` / `write` を付けて発行する。`write` は作成・更新・削除・コメント投稿に要る。
+      加えて、プロジェクトでの役割（admin / member / viewer）による制限は画面と同じ。
+    - 回数制限: 1 分あたり 60 回（トークンの持ち主ごと）。超えると 429。
+    - 見えない課題・参加していないプロジェクトは 404 を返す（存在を漏らさないため）。
+    - 課題の更新は画面と同じサービスを通る。ワークフローで許可されていない遷移は 422、
+      履歴・通知・Webhook も画面からの操作と同じように残る・飛ぶ。
+servers:
+  - url: http://localhost:8000/api/v1
+security:
+  - bearerAuth: []
+
+paths:
+  /me:
+    get:
+      summary: トークンの持ち主
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+                  token:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      abilities: { type: array, items: { type: string, enum: [read, write] } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /projects:
+    get:
+      summary: 参加しているプロジェクト
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Project' } }
+
+  /projects/{key}:
+    get:
+      summary: プロジェクト（ステータスの一覧つき）
+      parameters: [{ $ref: '#/components/parameters/ProjectKey' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Project' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /projects/{key}/issues:
+    post:
+      summary: 課題を作る（write）
+      parameters: [{ $ref: '#/components/parameters/ProjectKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/IssueInput'
+                - required: [title]
+      responses:
+        '201':
+          description: 作成した課題
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Issue' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /issues:
+    get:
+      summary: 課題の一覧（画面の一覧と同じ絞り込み）
+      parameters:
+        - name: q
+          in: query
+          description: '条件式。例: `assignee:me status:進行中 due<7d -tag:後回し`。読めない条件があると 422'
+          schema: { type: string }
+        - { name: keyword, in: query, schema: { type: string }, description: タイトル・本文の部分一致 }
+        - { name: project, in: query, schema: { type: integer }, description: プロジェクト ID }
+        - { name: priority, in: query, schema: { type: string, enum: [high, medium, low] } }
+        - { name: category, in: query, schema: { type: string, enum: [todo, in_progress, done] } }
+        - { name: overdue, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [latest, oldest, due_date, priority] } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: OK（Laravel のページネーション形式）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Issue' } }
+                  links: { type: object }
+                  meta: { type: object }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /issues/{key}:
+    parameters: [{ $ref: '#/components/parameters/IssueKey' }]
+    get:
+      summary: 課題
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Issue' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      summary: 課題を更新する（write）。送った項目だけが変わる
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IssueInput' }
+      responses:
+        '200':
+          description: 更新後の課題
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Issue' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: 検証エラー、またはワークフローで許可されていない遷移（`from` / `to` つき）
+    delete:
+      summary: 課題を削除する（write。admin か、起票した member）
+      responses:
+        '204': { description: 削除した }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /issues/{key}/comments:
+    parameters: [{ $ref: '#/components/parameters/IssueKey' }]
+    get:
+      summary: コメント（古い順、50 件ずつ）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+    post:
+      summary: コメントを投稿する（write）。HTML はサニタイズされる
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 5000, example: '<p>確認しました</p>' }
+      responses:
+        '201':
+          description: 投稿したコメント
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Comment' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    ProjectKey:
+      name: key
+      in: path
+      required: true
+      schema: { type: string, example: DEMO }
+    IssueKey:
+      name: key
+      in: path
+      required: true
+      schema: { type: string, example: DEMO-12 }
+
+  responses:
+    Unauthenticated:
+      description: トークンが無い・無効・期限切れ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: トークンの権限（read / write）か、プロジェクトでの役割が足りない
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: 無い、または見る権限が無い
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: 入力の誤り
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+              errors:
+                type: object
+                additionalProperties: { type: array, items: { type: string } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, description: 本人（/me）のときだけ }
+
+    Project:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string, example: DEMO }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        role: { type: string, enum: [admin, member, viewer], description: 一覧のときだけ }
+        statuses:
+          type: array
+          description: 1 件取得のときだけ
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              category: { type: string, enum: [todo, in_progress, done] }
+
+    Issue:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string, example: DEMO-12 }
+        url: { type: string, format: uri }
+        project: { type: object, properties: { key: { type: string }, name: { type: string } } }
+        title: { type: string }
+        content: { type: [string, 'null'], description: サニタイズ済みの HTML }
+        content_text: { type: [string, 'null'], description: 平文 }
+        type: { type: string, enum: [epic, story, task, bug, subtask] }
+        priority: { type: string, enum: [high, medium, low] }
+        status:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            category: { type: string, enum: [todo, in_progress, done] }
+        assignee: { oneOf: [{ $ref: '#/components/schemas/User' }, { type: 'null' }] }
+        reporter: { oneOf: [{ $ref: '#/components/schemas/User' }, { type: 'null' }] }
+        sprint_id: { type: [integer, 'null'] }
+        story_points: { type: [integer, 'null'] }
+        estimate_minutes: { type: [integer, 'null'] }
+        due_date: { type: [string, 'null'], format: date }
+        tags: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+
+    IssueInput:
+      type: object
+      properties:
+        title: { type: string, maxLength: 255 }
+        content: { type: [string, 'null'], description: HTML。保存前にサニタイズされる }
+        type: { type: string, enum: [epic, story, task, bug] }
+        priority: { type: string, enum: [high, medium, low] }
+        status:
+          description: ステータスの ID か名前。更新ではワークフローで許可された遷移だけ
+          oneOf: [{ type: integer }, { type: string }]
+        assignee_id: { type: [integer, 'null'], description: プロジェクトのメンバーのユーザー ID }
+        due_date: { type: [string, 'null'], format: date }
+        story_points: { type: [integer, 'null'], minimum: 0, maximum: 999 }
+        estimate_minutes: { type: [integer, 'null'], minimum: 1 }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        body: { type: string, description: サニタイズ済みの HTML }
+        body_text: { type: string }
+        author: { oneOf: [{ $ref: '#/components/schemas/User' }, { type: 'null' }] }
+        edited: { type: boolean }
+        created_at: { type: string, format: date-time }

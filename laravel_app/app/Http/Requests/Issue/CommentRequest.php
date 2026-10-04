@@ -18,7 +18,8 @@ class CommentRequest extends FormRequest
         $comment = $this->route('comment');
 
         return $comment === null
-            ? $this->user()->can('create', [Comment::class, $this->route('task')])
+            // 画面のルートは {task}、API のルートは {issue}
+            ? $this->user()->can('create', [Comment::class, $this->route('task') ?? $this->route('issue')])
             : $this->user()->can('update', $comment);
     }
 

@@ -17,7 +17,8 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip libzip-dev default-mysql-client \
-    && docker-php-ext-install pdo_mysql zip \
+    # pcntl は Reverb（WebSocket サーバー）がシグナルで止まるために要る
+    && docker-php-ext-install pdo_mysql zip pcntl \
     && rm -rf /var/lib/apt/lists/*
 
 # 依存だけ先に入れてレイヤーキャッシュを効かせる

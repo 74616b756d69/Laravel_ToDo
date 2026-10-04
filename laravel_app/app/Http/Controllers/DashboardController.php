@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\StatusCategory;
 use App\Enums\TaskPriority;
 use App\Models\Issue;
+use App\Models\Worklog;
 use App\Services\SprintService;
 use App\Support\ProjectContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,8 +33,11 @@ class DashboardController extends Controller
             'streak' => $this->streak(),
             'upcoming' => $this->upcoming(),
             'topTags' => $this->topTags(),
+            'weeklyHours' => $this->weeklyHours(),
             // 進行中スプリントがあればバーンダウンを出す。無ければ null
             'burndown' => $this->sprints->burndownFor($this->context->current(Auth::user())),
+            // 閉じたスプリントのベロシティ。現在のプロジェクトだけ（スプリントはプロジェクトごとのもの）
+            'velocity' => $this->sprints->velocityFor($this->context->current(Auth::user())),
         ]);
     }
 
@@ -46,6 +50,30 @@ class DashboardController extends Controller
     private function query(): Builder
     {
         return Issue::query()->visibleTo(Auth::user())->topLevel();
+    }
+
+    /**
+     * 今週（完了数の集計と同じ週の始まりから）の作業時間を人ごとに。多い順。
+     *
+     * 見えるプロジェクトの課題に付いた記録だけを数える（サブタスクの記録も含む。
+     * 作業時間は親子に関係なく、実際に働いた時間なので）。
+     *
+     * @return Collection<int, array{name: string, minutes: int}>
+     */
+    private function weeklyHours(): Collection
+    {
+        return Worklog::query()
+            ->whereHas('issue', fn (Builder $query) => $query->visibleTo(Auth::user()))
+            ->where('worked_on', '>=', today()->startOfWeek()->toDateString())
+            ->with('user')
+            ->selectRaw('user_id, sum(minutes) as total_minutes')
+            ->groupBy('user_id')
+            ->orderByDesc('total_minutes')
+            ->get()
+            ->map(fn (Worklog $row) => [
+                'name' => $row->authorName(),
+                'minutes' => (int) $row->getAttribute('total_minutes'),
+            ]);
     }
 
     /**

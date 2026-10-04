@@ -12,6 +12,7 @@ use App\Services\IssueLinkService;
 use App\Services\WorkflowService;
 use App\Support\IssueTimeline;
 use App\Support\ProjectContext;
+use App\Support\Search\IssueFilters;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,19 +27,9 @@ class TaskController extends Controller
         private readonly ProjectContext $context,
     ) {}
 
-    /**
-     * 並び替えの選択肢。キーはクエリ文字列、値は画面表示のラベル。
-     */
-    private const SORTS = [
-        'latest' => '新しい順',
-        'oldest' => '古い順',
-        'due_date' => '期限が近い順',
-        'priority' => '優先度が高い順',
-    ];
-
     public function index(Request $request): View
     {
-        $filters = $this->filters($request);
+        $filters = IssueFilters::fromRequest($request);
 
         $tasks = $this->query()
             ->with('tags', 'project', 'assignee', 'status')
@@ -47,14 +38,7 @@ class TaskController extends Controller
                 'children',
                 'children as done_children_count' => fn (Builder $query) => $query->completed(),
             ])
-            ->search($filters['keyword'])
-            ->inProject($filters['project'])
-            ->status($filters['status'])
-            ->category($filters['category'])
-            ->priority($filters['priority'])
-            ->tagged($filters['tag'])
-            ->when($filters['overdue'], fn (Builder $query) => $query->overdue())
-            ->sorted($filters['sort'])
+            ->tap(fn (Builder $query) => $filters->apply($query, $request->user()))
             ->paginate(10)
             ->withQueryString()
             // 現在地の前後 1 ページぶんだけを出す。11 ページあっても番号は折り返さない
@@ -62,9 +46,11 @@ class TaskController extends Controller
 
         return view('tasks.index', [
             'tasks' => $tasks,
-            'filters' => $filters,
+            'filters' => $filters->values,
+            'queryErrors' => $filters->advanced->errors(),
+            'savedFilters' => $request->user()->savedFilters()->get(),
             'summary' => $this->summary(),
-            'sorts' => self::SORTS,
+            'sorts' => IssueFilters::SORTS,
             'tags' => Auth::user()->tags,
             'statuses' => $this->statuses(),
             // 横断ビューのままにしておき、プロジェクトは絞り込みの 1 つとして足す
@@ -133,7 +119,7 @@ class TaskController extends Controller
             'tags', 'project.users', 'assignee', 'reporter', 'status', 'sprint', 'parent',
             // 子は 1 行にステータス・担当者・キーまで出すので、そこまで読む
             'children.status', 'children.assignee', 'children.project',
-            'comments.user', 'activities.user',
+            'comments.user', 'activities.user', 'attachments.user', 'worklogs.user',
         );
         $task->loadCount('watchers');
 
@@ -229,28 +215,6 @@ class TaskController extends Controller
             ...$byCategory,
             'total' => $byCategory->sum(),
             'overdue' => $this->query()->overdue()->count(),
-        ];
-    }
-
-    /**
-     * クエリ文字列を検証済みの絞り込み条件に変換する。
-     *
-     * @return array{keyword: ?string, project: ?int, status: ?int, category: ?StatusCategory, priority: ?TaskPriority, tag: ?int, overdue: bool, sort: string}
-     */
-    private function filters(Request $request): array
-    {
-        $sort = (string) $request->query('sort');
-
-        return [
-            'keyword' => $request->string('keyword')->trim()->value() ?: null,
-            'project' => $request->integer('project') ?: null,
-            'status' => $request->integer('status') ?: null,
-            // 集計カードからの絞り込み。ステータス名ではなくカテゴリで横断する
-            'category' => StatusCategory::tryFrom((string) $request->query('category')),
-            'priority' => TaskPriority::tryFrom((string) $request->query('priority')),
-            'tag' => $request->integer('tag') ?: null,
-            'overdue' => $request->boolean('overdue'),
-            'sort' => array_key_exists($sort, self::SORTS) ? $sort : 'latest',
         ];
     }
 }
