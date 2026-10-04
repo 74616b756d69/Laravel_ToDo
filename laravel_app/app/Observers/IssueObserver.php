@@ -4,6 +4,9 @@ namespace App\Observers;
 
 use App\Enums\ActivityField;
 use App\Enums\TaskPriority;
+use App\Events\IssueAssigned;
+use App\Events\IssueCreated;
+use App\Events\IssueTransitioned;
 use App\Models\Activity;
 use App\Models\Issue;
 use App\Models\Sprint;
@@ -20,12 +23,18 @@ use Illuminate\Support\Facades\Auth;
  *
  * 値は ID ではなく「そのときの表示名」を残す。スプリントや担当者が
  * あとから消えても履歴が読めるようにするため。
+ *
+ * 通知や外部連携の起点になるドメインイベント（App\Events\Issue*）もここから出す。
+ * 履歴と同じ「モデルが変わったら必ず通る場所」に置けば、記録とイベントの
+ * どちらか片方だけが漏れる、ということが起きない。
  */
 class IssueObserver
 {
     public function created(Issue $issue): void
     {
         $this->record($issue, ActivityField::Created, null, null);
+
+        IssueCreated::dispatch($issue, Auth::user());
     }
 
     public function updated(Issue $issue): void
@@ -40,6 +49,34 @@ class IssueObserver
                 $field,
                 $this->label($field, $issue->getOriginal($column)),
                 $this->label($field, $issue->getAttribute($column)),
+            );
+        }
+
+        $this->dispatchEvents($issue);
+    }
+
+    /**
+     * 通知に値する変更だけをイベントにする。
+     *
+     * 関連（$issue->status など）はサービスが保存後に差し替えるので、
+     * ここで読むと古い値のことがある。ID から引き直す。
+     */
+    private function dispatchEvents(Issue $issue): void
+    {
+        if ($issue->wasChanged('status_id')) {
+            IssueTransitioned::dispatch(
+                $issue,
+                Status::find($issue->getOriginal('status_id')),
+                Status::findOrFail($issue->status_id),
+                Auth::user(),
+            );
+        }
+
+        if ($issue->wasChanged('assignee_id')) {
+            IssueAssigned::dispatch(
+                $issue,
+                $issue->assignee_id === null ? null : User::find($issue->assignee_id),
+                Auth::user(),
             );
         }
     }

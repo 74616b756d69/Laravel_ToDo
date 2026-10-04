@@ -366,9 +366,27 @@
 
             {{--
                 編集への入り口は置かない。項目はすべてその場で直せるので、
-                ここに残るのは「その場では済まない操作」＝削除だけ。
+                ここに残るのは「その場では済まない操作」＝ウォッチと削除だけ。
             --}}
             <div class="flex items-center gap-2">
+                {{-- ウォッチ。読むだけの人（viewer）も押せる --}}
+                <form action="{{ route($isWatching ? 'tasks.unwatch' : 'tasks.watch', $task) }}" method="POST">
+                    @csrf
+                    @if ($isWatching)
+                        @method('DELETE')
+                    @endif
+                    <button type="submit" aria-pressed="{{ $isWatching ? 'true' : 'false' }}"
+                            @class([
+                                'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition',
+                                'bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20' => $isWatching,
+                                'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5' => ! $isWatching,
+                            ])>
+                        <x-icon name="eye" class="size-4" />
+                        {{ $isWatching ? 'ウォッチ中' : 'ウォッチする' }}
+                        <span class="text-xs text-slate-400 dark:text-slate-500">{{ $task->watchers_count }}</span>
+                    </button>
+                </form>
+
                 @can('delete', $task)
                     <form action="{{ route('tasks.destroy', $task) }}" method="POST" class="ml-auto"
                           data-confirm="「{{ $task->title }}」を削除します。よろしいですか？">

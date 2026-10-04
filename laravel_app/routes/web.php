@@ -9,6 +9,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Issue\CommentController;
 use App\Http\Controllers\Issue\IssueLinkController;
 use App\Http\Controllers\Issue\LegacyUrlController;
+use App\Http\Controllers\Issue\WatchController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Project\ProjectMemberController;
 use App\Http\Controllers\Project\ProjectSwitchController;
 use App\Http\Controllers\Project\StatusController;
@@ -50,6 +52,11 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // アプリ内通知。開くと既読にして課題へ送る
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::get('notifications/{id}', [NotificationController::class, 'show'])->whereUuid('id')->name('notifications.show');
 
     // ヘッダーの検索窓。キーなら /browse、それ以外は一覧のキーワード検索へ振り分ける
     Route::get('search', SearchController::class)->name('search');
@@ -138,6 +145,10 @@ Route::middleware('auth')->group(function () {
     // リンクされた作業項目。親子とは別で、関連づけても相手は一覧に残る
     Route::post('tasks/{task}/links', [IssueLinkController::class, 'store'])->name('links.store');
     Route::delete('tasks/{task}/links/{link}', [IssueLinkController::class, 'destroy'])->name('links.destroy');
+
+    // ウォッチ（変更を通知で受け取る）
+    Route::post('tasks/{task}/watch', [WatchController::class, 'store'])->name('tasks.watch');
+    Route::delete('tasks/{task}/watch', [WatchController::class, 'destroy'])->name('tasks.unwatch');
 
     // サブタスク（タスクに従属するのでネストする）
     Route::post('tasks/{task}/subtasks', [SubtaskController::class, 'store'])->name('subtasks.store');

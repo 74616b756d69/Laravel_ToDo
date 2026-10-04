@@ -57,6 +57,12 @@ until php artisan db:monitor > /dev/null 2>&1; do
     sleep 2
 done
 
+# キューのワーカーはマイグレーションもシードもしない。
+# app コンテナが済ませてから起動する（docker-compose.yml の depends_on）
+if [ "${CONTAINER_ROLE:-app}" = "worker" ]; then
+    exec "$@"
+fi
+
 # ---------------------------------------------------------------------------
 # マイグレーションを流す
 #

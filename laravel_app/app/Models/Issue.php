@@ -209,6 +209,53 @@ class Issue extends Model
         return $this->belongsToMany(Tag::class, 'tag_task', 'task_id', 'tag_id')->orderBy('name');
     }
 
+    /**
+     * 変更を通知で受け取る人。
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function watchers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'issue_watchers')->withTimestamps();
+    }
+
+    // --- ウォッチ -------------------------------------------------------------
+
+    /**
+     * ウォッチに加える。二重に加えても 1 行のまま（冪等）。
+     */
+    public function watch(User $user): void
+    {
+        $this->watchers()->syncWithoutDetaching([$user->id]);
+    }
+
+    public function unwatch(User $user): void
+    {
+        $this->watchers()->detach($user->id);
+    }
+
+    public function isWatchedBy(User $user): bool
+    {
+        return $this->watchers()->whereKey($user->id)->exists();
+    }
+
+    /**
+     * 通知を届けてよいウォッチャー。
+     *
+     * プロジェクトから外れた人は、ウォッチの行が残っていても除く。
+     * 見られなくなった課題の中身を、通知経由で読めてしまわないようにするため。
+     * 操作した本人には自分の操作を知らせない。
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     */
+    public function notifiableWatchers(?User $except = null)
+    {
+        return $this->watchers()
+            ->whereHas('projectMemberships', fn (Builder $query) => $query->where('project_id', $this->project_id))
+            ->when($except, fn ($query) => $query->whereKeyNot($except->id))
+            ->get();
+    }
+
     // --- 表示 ---------------------------------------------------------------
 
     /**

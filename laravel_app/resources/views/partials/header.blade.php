@@ -99,6 +99,23 @@
                     <x-icon name="search" class="size-5" />
                 </a>
 
+                {{-- 通知。未読があるときだけ件数を出す（0 を出し続けると目に入らなくなる） --}}
+                <a href="{{ route('notifications.index') }}"
+                   aria-label="通知{{ $unreadNotifications > 0 ? "（未読 {$unreadNotifications} 件）" : '' }}"
+                   @class([
+                       'relative grid size-8 place-items-center rounded-md transition hover:text-slate-900 dark:hover:text-white',
+                       'text-slate-900 dark:text-white' => request()->routeIs('notifications.*'),
+                       'text-slate-400' => ! request()->routeIs('notifications.*'),
+                   ])>
+                    <x-icon name="bell" class="size-5" />
+                    @if ($unreadNotifications > 0)
+                        <span aria-hidden="true"
+                              class="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] leading-none font-semibold text-white">
+                            {{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}
+                        </span>
+                    @endif
+                </a>
+
                 <x-menu width="w-52">
                     <x-slot:trigger>
                         <span class="sr-only">アカウントメニュー</span>

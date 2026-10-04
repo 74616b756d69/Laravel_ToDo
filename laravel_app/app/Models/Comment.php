@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\CommentPosted;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,14 @@ class Comment extends Model
      * 晒しておくと、将来 $request->all() を渡したときに詐称できてしまう。
      */
     protected $fillable = ['body', 'edited_at'];
+
+    /**
+     * 投稿を通知や外部連携に伝える。編集・削除はイベントにしない
+     * （言い間違いの修正のたびに通知が飛ぶと、通知そのものが読まれなくなる）。
+     */
+    protected $dispatchesEvents = [
+        'created' => CommentPosted::class,
+    ];
 
     protected function casts(): array
     {

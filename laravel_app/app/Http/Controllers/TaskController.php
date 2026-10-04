@@ -135,6 +135,7 @@ class TaskController extends Controller
             'children.status', 'children.assignee', 'children.project',
             'comments.user', 'activities.user',
         );
+        $task->loadCount('watchers');
 
         $tab = IssueTimeline::tab($request->query('tab'));
 
@@ -151,6 +152,7 @@ class TaskController extends Controller
             'tags' => $request->user()->tags()->get(),
             // 各項目を「押したら編集」にするか、読むだけにするかの分かれ目
             'canUpdate' => $request->user()->can('update', $task),
+            'isWatching' => $task->isWatchedBy($request->user()),
         ]);
     }
 

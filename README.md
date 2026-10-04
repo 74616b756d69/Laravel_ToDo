@@ -6,7 +6,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.3-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-494_passed-3FB950?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-516_passed-3FB950?style=flat-square)
 
 ---
 
@@ -37,6 +37,7 @@
 | **バックログ** | スプリントと未割り当ての課題をドラッグ＆ドロップで振り分け |
 | **カンバンボード** | ワークフローのステータスをレーンにして、ドラッグ＆ドロップで遷移・並び替え |
 | **インライン編集** | 詳細画面で、タイトル・本文・ステータス・担当者・タイプ・優先度・期限・ストーリーポイント・タグを 1 項目ずつ更新 |
+| **通知とウォッチ** | 担当になった・ウォッチ中の課題が動いた・コメントが付いたときにアプリ内で通知（担当はメールでも）。起票者・担当者・コメントした人は自動でウォッチ |
 | **コメントと履歴** | リッチテキストのコメント（編集・削除）と、ステータス・担当者などの変更履歴をタイムライン表示 |
 | **課題リンク** | 「関連する」「ブロックする」「重複する」で課題同士を関連づけ |
 | **クイック追加** | 1 行書くだけで課題化。期限・タグ・優先度を文章から自動で読み取る |
@@ -60,8 +61,9 @@
 | エディタ | Tiptap v3（ProseMirror）+ HTMLPurifier によるサーバー側サニタイズ |
 | ドラッグ&ドロップ | SortableJS |
 | データベース | MySQL 8.3（ローカル開発・テストは SQLite） |
-| テスト | PHPUnit 11（Feature 428 件 / Unit 66 件） |
+| テスト | PHPUnit 11（Feature 450 件 / Unit 66 件） |
 | 品質管理 | Laravel Pint / GitHub Actions |
+| 非同期処理 | Laravel Queue（database ドライバ）。通知メールはキュー経由で送信 |
 | 実行環境 | Docker / Docker Compose |
 
 ---
@@ -76,7 +78,9 @@ Organization ─┬─ Project ─┬─ ProjectMember（User × ロール）
               │                     ├─ IssueLink（関連 / ブロック / 重複）
               │                     ├─ Comment
               │                     ├─ Activity（変更履歴）
+              │                     ├─ Watcher（User 多対多）
               │                     └─ Tag（多対多）
+User ── Notification（アプリ内通知）
 ```
 
 設計の検討過程は [`docs/jira-design.md`](docs/jira-design.md)、
@@ -105,7 +109,19 @@ Organization ─┬─ Project ─┬─ ProjectMember（User × ロール）
   プロジェクトごとにステータス名が違っても壊れない
 - ステータスの削除は「残った課題をどこへ送るか」を選んでから実行する 2 段構え
 
-### 3. 他人のデータに触れさせない
+### 3. 通知はイベントから組み立てる
+課題の変更は `IssueObserver` からドメインイベント（`IssueCreated` / `IssueTransitioned` / `IssueAssigned` / `CommentPosted`）として発行し、
+通知やウォッチの追加はリスナーが受け持ちます。変更履歴と同じ「モデルが変わったら必ず通る場所」から出すので、
+新しい書き込み経路を足しても通知だけ漏れる、ということが起きません。今後の外部連携（Slack・Webhook）も同じイベントに乗せる想定です。
+
+- イベントは**コミット後に発火**（`ShouldDispatchAfterCommit`）。ロールバックされた変更の通知は届かない
+- **操作した本人には届けない**。移行コマンドやシーダーなど、操作者のいない変更も通知しない
+- ウォッチが残っていても、**プロジェクトから外れた人には届けない**（見られなくなった課題の中身が通知経由で漏れないように）
+- 通知の文面は送信時点の内容を写し取り、モデルを抱えない。キューに積んだあとで課題が消えても配信が落ちない
+- アプリ内通知は同期で書き、**メールだけキューに回す**。ワーカーが止まっていても画面上の通知は届く
+- メールは「担当になった」ときだけ。全部をメールにすると量が多すぎて読まれなくなるため
+
+### 4. 他人のデータに触れさせない
 認可の根拠は `project_members.role` の 1 か所だけに置いています。
 
 | 操作 | admin | member | viewer |
@@ -119,14 +135,14 @@ Organization ─┬─ Project ─┬─ ProjectMember（User × ロール）
 両者が同じ根拠を見ていることを専用のテストクラスで担保しています。
 ワークフロー設定の URL も `scopeBindings()` で、そのプロジェクト配下のステータスしか解決しません。
 
-### 4. 課題番号を重複させない
+### 5. 課題番号を重複させない
 `PROJ-123` の連番は、同時に作成されても重複してはいけません。
 
 - MySQL では `SELECT ... FOR UPDATE` でプロジェクトの行を掴んで採番
 - SQLite では `FOR UPDATE` が効かないため、`unique(project_id, issue_number)` 制約とリトライで受け止める
 - `pcntl` で**本当にプロセスを並行させる**テストで、重複しないことを確認
 
-### 5. 既存データを壊さずに作り替える
+### 6. 既存データを壊さずに作り替える
 個人向け ToDo（`tasks` / `subtasks` / 固定 3 ステータス）から課題管理への移行は、
 マイグレーションを段階に分け、間に移行コマンドを挟む構成にしました。
 
@@ -139,7 +155,7 @@ Organization ─┬─ Project ─┬─ ProjectMember（User × ロール）
 Docker のエントリポイントはこの順序を自動で踏むので、既存のデータベースでもそのまま起動できます。
 移行前の URL（`/tasks/{id}`）は課題キーの URL へ転送します。
 
-### 6. 「書き留めるまで」を最短にする
+### 7. 「書き留めるまで」を最短にする
 タスク管理ツールを使わなくなる一番の理由は、**1 件登録するのが面倒**だからだと考えました。
 そこで一覧の先頭に 1 行の入力欄を置き、文章から属性を読み取るようにしています。
 
@@ -163,13 +179,13 @@ Docker のエントリポイントはこの順序を自動で踏むので、既�
 解析ロジックは `QuickAddParser` に切り出し、表記ごとに単体テストを書いています。
 同じ入力欄をボードの各レーン下部にも置き、そこから追加した課題はそのレーンのステータスで末尾に入ります。
 
-### 7. 状態を enum で型安全に扱う
+### 8. 状態を enum で型安全に扱う
 課題タイプ・優先度・ロール・スプリントの状態・リンクの種類などは PHP の **backed enum**
 （`App\Enums\IssueType` / `TaskPriority` / `ProjectRole` / `SprintState` / `IssueLinkType` など）で定義し、
 モデルのキャスト・バリデーション（`Rule::enum()`）・画面のラベルと配色までを 1 か所に集約しました。
 プロジェクトごとに変わるステータスだけは、enum ではなくテーブル（`statuses`）で持っています。
 
-### 8. リッチテキストを安全に扱う
+### 9. リッチテキストを安全に扱う
 リッチテキストは「HTML をそのまま保存して表示する」機能なので、XSS の入口になり得ます。
 そこで **保存の直前に必ずサニタイズされる**よう、モデルのミューテータに処理を寄せました。
 コントローラ側の書き忘れでは素通りしません。課題の本文とコメントの両方に適用しています。
@@ -194,26 +210,26 @@ protected function content(): Attribute
 - HTML のままだと検索が `<p>` などのタグに誤ヒットするため、**平文カラムを別に持って検索対象にする**
 - サニタイズは重いので、コメント投稿には回数制限（30 回 / 分）を設定
 
-### 9. セキュリティの基本を押さえる
+### 10. セキュリティの基本を押さえる
 - パスワードはハッシュ化して保存（`hashed` キャスト）
 - ログイン成功時に**セッション ID を再生成**（セッション固定攻撃対策）
 - ログイン失敗 5 回で一時的にロック（総当たり対策）
 - エラーメッセージでメールアドレスの存在有無を区別しない（ユーザー列挙対策）
 - 全フォームに CSRF トークン、Blade のエスケープで XSS 対策
 
-### 10. JavaScript が無くても壊れない
+### 11. JavaScript が無くても壊れない
 インライン編集は `<details>` / `<summary>` で作っているので、JS 無しでも開閉して保存できます。
 完了トグル・絞り込み・削除確認もフォーム送信で成立し、
 リッチエディタは `<noscript>` で通常のテキストエリアにフォールバックします。
 （カンバンとバックログのドラッグ＆ドロップのみ JS 必須です）
 
-### 11. パフォーマンス
+### 12. パフォーマンス
 - 必要な関連は eager load し、開発環境では `Model::shouldBeStrict()` で N+1 を検出
 - 子課題の進捗は `withCount` で集計し、一覧での N+1 を回避
 - 重い依存（Tiptap / SortableJS）は**動的 import** で必要なページだけ読み込む
   （初期バンドル 56KB / エディタ 381KB / ボード・バックログ 37KB に分割）
 
-### 12. グラフは配色まで根拠を持たせる
+### 13. グラフは配色まで根拠を持たせる
 ダッシュボードのグラフは外部ライブラリを使わず、サーバー側で組み立てた **インライン SVG** です。
 
 - 日別の完了数は**単一系列**なので 1 色（凡例は不要、タイトルが系列名を兼ねる）
@@ -231,7 +247,7 @@ php artisan test
 ```
 
 ```
-Tests:  2 skipped, 494 passed (1375 assertions)
+Tests:  2 skipped, 516 passed (1421 assertions)
 ```
 
 スキップの 2 件は、課題番号の並行採番テストのうち `pcntl` 拡張や MySQL が必要なものです（環境が揃えば実行されます）。
@@ -245,6 +261,9 @@ Tests:  2 skipped, 494 passed (1375 assertions)
 | `Issue\IssueNumberConcurrencyTest` | 並行して作成しても番号が重複しないこと |
 | `Issue\IssueHierarchyTest` / `SubIssueTest` | 親子関係の制約（階層は 1 段まで・自分自身を親にしない）、子課題の追加・付け外し |
 | `Issue\IssueLinkTest` | 課題リンクの作成・重複防止・削除 |
+| `Notification\IssueNotificationTest` | 誰に届き誰に届かないか（本人・未ウォッチ・プロジェクト外・操作者なし・ロールバック）、自動ウォッチ |
+| `Notification\NotificationInboxTest` | 通知一覧・未読数・既読化・他人の通知の保護 |
+| `Issue\WatchTest` | ウォッチと解除、ロールごとの可否 |
 | `Issue\CommentTest` / `ActivityTest` | コメントの投稿・編集・削除、変更履歴の記録 |
 | `Issue\MigrateTasksToIssuesTest` / `InstallWorkflowsTest` | 旧 ToDo データからの移行コマンド |
 | `Sprint\*` | スプリントの開始・完了・持ち越し、バックログの振り分け、バーンダウン |
@@ -265,7 +284,7 @@ docker compose up --build
 # → http://localhost:8000
 ```
 
-これだけで MySQL ごと起動し、そのまま新規登録して使えます。
+これだけで MySQL とキューのワーカーごと起動し、そのまま新規登録して使えます。
 初回起動時に以下が自動で実行されます。
 
 1. `.env` の生成と、compose で指定した設定（DB 接続先など）の反映
@@ -311,7 +330,11 @@ touch database/database.sqlite
 php artisan migrate --seed   # デモデータを投入
 
 php artisan serve
+php artisan queue:work   # 別のターミナルで（通知メールの送信に使う）
 ```
+
+`composer run dev` なら、サーバー・キューのワーカー・ログ・Vite をまとめて起動できます。
+メールは既定で `storage/logs/laravel.log` に書き出されます（`MAIL_MAILER=log`）。
 
 > 旧 ToDo 版のデータベースを引き継ぐ場合は、`migrate` の前に
 > [`docs/issue-migration-runbook.md`](docs/issue-migration-runbook.md) の手順を確認してください。
@@ -353,6 +376,7 @@ DEMO_LOGIN_ENABLED=false
 ```
 laravel_app/
 ├── app/
+│   ├── Events/                 # IssueCreated / IssueTransitioned / IssueAssigned / CommentPosted
 │   ├── Enums/                  # IssueType / TaskPriority / ProjectRole / SprintState など
 │   ├── Http/
 │   │   ├── Controllers/
@@ -361,7 +385,10 @@ laravel_app/
 │   │   │   ├── Project/        # メンバー・ステータス・遷移・プロジェクト切り替え
 │   │   │   └── Sprint/         # スプリントのライフサイクル
 │   │   └── Requests/           # バリデーション
+│   ├── Listeners/              # 自動ウォッチ・通知の送信
 │   ├── Models/                 # Organization / Project / Issue / Status / Sprint / Comment など
+│   ├── Notifications/          # 担当・ステータス変更・コメントの通知
+│   ├── Observers/              # 変更履歴の記録とイベントの発行
 │   ├── Policies/               # ロールに基づく認可
 │   ├── Services/               # Workflow / Sprint / IssueHierarchy / IssueLink など
 │   └── Support/
@@ -395,8 +422,10 @@ docs/                           # 設計書・移行手順書
 
 ## 🔭 今後の展望
 
-- 期限が近い課題・担当になった課題のメール通知（Queue + Notification）
-- @メンションとウォッチ
+- @メンション（通知の仕組みに乗せる）
+- Slack 通知・汎用 Webhook の送信（イベントに乗せる）
+- GitHub 連携（コミット・PR の課題キーから課題へ紐づけ、マージで自動完了）
+- 期限が近い課題のリマインド（スケジューラ + 通知）
 - JQL 風の検索クエリと、保存できるフィルター
 - クイック追加の入力中プレビュー（打ちながら解釈結果を表示）
 - REST API 化（Laravel Sanctum）とモバイル対応

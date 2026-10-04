@@ -3,7 +3,7 @@ services:
     build: ./
     ports:
       - "8000:8000"
-    environment:
+    environment: &app-env
       APP_NAME: ToDo
       APP_ENV: local
       APP_DEBUG: "true"
@@ -22,6 +22,26 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # キューのワーカーは、マイグレーションが終わってから起動させたいので
+    # 「Web が応答する」ことを準備完了の合図にする
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8000/up') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # キューのワーカー。通知メールなど、リクエストの外でやる処理を受け持つ
+  queue:
+    build: ./
+    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=10"]
+    environment:
+      <<: *app-env
+      # マイグレーションとシードは app コンテナが受け持つ（同時に流すと競合する）
+      CONTAINER_ROLE: worker
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
 
   db:
     image: mysql:8.3

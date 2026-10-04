@@ -36,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'currentProject' => $context->current(Auth::user()),
                 'availableProjects' => $context->available(Auth::user()),
+                'unreadNotifications' => Auth::user()->unreadNotifications()->count(),
             ]);
         });
 
